@@ -6,8 +6,8 @@
 #' @param outcome This is the outcome variables. Specified as outcome="outcomevariablename" for a single variable or outcome=c("outcomevariablename1","outcomevariablename2"). If it is NULL, it will consider each variables as outcome once.
 #' @param ID The name of the ID column in the data E.G. ID = "ID"
 #' @param estimate The relationship which we are interested, estimate = "marginal" or "partial". Default is the "marginal".
-#' @param Tpred The prediction start time, end time and step size. It is a c("start time","end time","step size") form
-#' @param signif_level Indicate the significance level of the confidence intervals. The default value is 0.05
+#' @param Tpred A vector which indicates that interested time points, e.g. seq(0,30,1)
+#' @param quantiles The quantiles to build bootstrapping CI, the default value is c(low_quantile, high_quantile) = c(.025, 0.975)
 #' @param boot Indicate if we perform bootstrapping estimation or not. If boot == True, we perfomr bootstrapping estimation. The default value is False
 #' @param plot_show The option to suppress the plot outcomes. The default if FALSE which means the plot outcomes will not appear.
 #' @param output_type Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. The default value is "CI"
@@ -15,11 +15,10 @@
 #' @param method Indicate which method will be used to estimate time-varying effetcs. The default value is "bam". Another option is "gam".
 #' @param gamma This can be used to change the wiggliness of the model. This can be useful if the model is too smooth (i.e flat). The lower the number the more wiggly this will be (see ?gam in MGCV for more information). The default is equal to 1. (OPTIONAL, UNCOMMONLY SPECIFIED)
 #' @param k The number of k selection points used in the model for stage 1 (see ?choose.k in mgcv package for more details) The ideal k is the maximum number of data points per person, but this slows down DTVEM and is often not required. (OPTIONAL, BUT RECOMMENDED)
-#' @param k3 The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)
+#' @param ktrend The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)
 
 
-CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "marginal", Tpred = seq(0,50,1),datamanipu = "DT", plot_show = FALSE,signif_level = 0.05, boot = FALSE ,output_type = "CI", standardized=TRUE,method = "bam",gamma=1,k=10,k3=3){
-
+CTVEM_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "marginal", Tpred = seq(0,30,1),datamanipu = "DT", plot_show = FALSE, boot = FALSE ,output_type = "CI", standardized=TRUE,method = "bam",gamma=1,k=10,ktrend=3, quantiles = c(.025, 0.975)){
 
   #LOAD NECESSARY PACKAGES
   #library(mgcv) #USED FOR THE PRIMARY ANALYSES
@@ -50,9 +49,11 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
 
 
   # Prepare some values
+  # Notice that the predictions interval is always 1 when we go to do data manipulation and estimations.
+  # However, when we return the estimation values from DTVEM, we only care about the interested time points indicated by users
   predictionstart = Tpred[1]
-  predictionsend = Tpred[2]
-  predictionsinterval = Tpred[3]
+  predictionsend = Tpred[length(Tpred)]
+  predictionsinterval = 1
   numberofknots = k
   list_name = c() # Use to give the name of the ouput list
 
@@ -88,31 +89,31 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
       outcome_mcr = varnames_mat[i,2] # Take the second variable as predictor
       # Do data manipulation two versions
       if(datamanipu == "DT"){
-      datamanipulationout = datamanipulation(input_list=input_list,differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,data=data,ID=ID,Time=Time,standardized=standardized,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval)
-      lengthcovariates = datamanipulationout$lengthcovariates
-      namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
-      laglongreducedummy = datamanipulationout$laglongreducedummy
+        datamanipulationout = datamanipulation(input_list=input_list,differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,data=data,ID=ID,Time=Time,standardized=standardized,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval)
+        lengthcovariates = datamanipulationout$lengthcovariates
+        namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
+        laglongreducedummy = datamanipulationout$laglongreducedummy
       }else{
-      datamanipulationout = datasep_generate(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,data=data,ID=ID,Time=Time,standardized=standardized,predictionsend=predictionsend)
-      lengthcovariates = datamanipulationout$lengthcovariates
-      namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
-      laglongreducedummy = datamanipulationout$laglongreducedummy
+        datamanipulationout = datasep_generate(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,data=data,ID=ID,Time=Time,standardized=standardized,predictionsend=predictionsend)
+        lengthcovariates = datamanipulationout$lengthcovariates
+        namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
+        laglongreducedummy = datamanipulationout$laglongreducedummy
       }
       # Run the CT estimation
       cat(paste("Perform the ",i,"/",nrow(varnames_mat), " time " , estimate , " CTVEM estimation",".\n",sep=""))
       #print(head(laglongreducedummy))
-      estout = CTest(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval,namesofnewpredictorvariables=namesofnewpredictorvariables,laglongreducedummy=laglongreducedummy,method = method, gamma=gamma,numberofknots=numberofknots,k3=k3,lengthcovariates=lengthcovariates,plot_show = plot_show)
+      estout = CTest(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval,namesofnewpredictorvariables=namesofnewpredictorvariables,laglongreducedummy=laglongreducedummy,method = method, gamma=gamma,numberofknots=numberofknots,ktrend=ktrend,lengthcovariates=lengthcovariates,plot_show = plot_show)
       # Do estimation
       model = estout$mod
       pdat = estout$pdat
-      pdat2 = data.frame(timediff = seq(predictionstart, predictionsend, by = predictionsinterval),time = 0)
+      pdat2 = data.frame(timediff = Tpred,time = 0)
       add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat2))
       pdat3 = cbind(pdat2, add_mat)
       colnames(pdat3)[3:ncol(pdat3)] = namesofnewpredictorvariables
       predictions=predict(model,pdat3,type="terms",se="TRUE")
       Single_preds[[i]] = as.vector(predictions$fit[,1])
-      Single_highCI[[i]] = as.vector(predictions$fit[,1])+qnorm(signif_level/2,lower.tail = F)*as.vector(predictions$se.fit[,1])
-      Singel_lowCI[[i]] = as.vector(predictions$fit[,1])+qnorm(signif_level/2,lower.tail = T)*as.vector(predictions$se.fit[,1])
+      Single_highCI[[i]] = as.vector(predictions$fit[,1])+qnorm(quantiles[2],lower.tail = T)*as.vector(predictions$se.fit[,1])
+      Singel_lowCI[[i]] = as.vector(predictions$fit[,1])+qnorm(quantiles[1],lower.tail = T)*as.vector(predictions$se.fit[,1])
       list_name = c(list_name, namesofnewpredictorvariables)
     }
   }
@@ -143,19 +144,19 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
     # Run the CT estimation
     cat(paste("Perform ", estimate , " CTVEM estimation",".\n",sep=""))
     #print(head(laglongreducedummy))
-    estout = CTest(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_pcr,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval,namesofnewpredictorvariables=namesofnewpredictorvariables,laglongreducedummy=laglongreducedummy,method = method, gamma=gamma,numberofknots=numberofknots,k3=k3,lengthcovariates=lengthcovariates,plot_show = plot_show)
+    estout = CTest(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_pcr,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval,namesofnewpredictorvariables=namesofnewpredictorvariables,laglongreducedummy=laglongreducedummy,method = method, gamma=gamma,numberofknots=numberofknots,ktrend=ktrend,lengthcovariates=lengthcovariates,plot_show = plot_show)
     # Do estimation
     model = estout$mod
     pdat = estout$pdat
-    pdat2 = data.frame(timediff = seq(0, predictionsend, by = predictionsinterval),time = 0)
+    pdat2 = data.frame(timediff = Tpred,time = 0)
     add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat2))
     pdat3 = cbind(pdat2, add_mat)
     colnames(pdat3)[3:ncol(pdat3)] = namesofnewpredictorvariables
     predictions=predict(model,pdat3,type="terms",se="TRUE")
     for (i in 1:length(Single_preds)) {
       Single_preds[[i]] = as.vector(predictions$fit[,i])
-      Single_highCI[[i]] = as.vector(predictions$fit[,i])+qnorm(signif_level/2,lower.tail = F)*as.vector(predictions$se.fit[,i])
-      Singel_lowCI[[i]] = as.vector(predictions$fit[,i])+qnorm(signif_level/2,lower.tail = T)*as.vector(predictions$se.fit[,i])
+      Single_highCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[2],lower.tail = T)*as.vector(predictions$se.fit[,i])
+      Singel_lowCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[1],lower.tail = T)*as.vector(predictions$se.fit[,i])
     }
     list_name = c(list_name, namesofnewpredictorvariables)
   }
@@ -171,7 +172,7 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
     rownames(returnmatrix) = list_names
     return(returnmatrix)
   }else{
-    attributes = list("Outcome variables" = outcome, "Estimate type" = estimate, "If standardize data" = standardized, "method" = method, "gamma" = gamma, "k" = k, "k3" = k3  )
+    attributes = list("Outcome variables" = outcome, "Estimate type" = estimate, "If standardize data" = standardized, "method" = method, "gamma" = gamma, "k" = k, "ktrend" = ktrend  )
     if(output_type == "CI"){
       return(list("est" = Single_preds, "highCI" = Single_highCI, "lowCI" = Singel_lowCI, "attributes" = attributes))
     }else{
