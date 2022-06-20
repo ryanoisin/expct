@@ -1,11 +1,11 @@
 #' Continuous Time-Varying Effect model for a single-time bootstrapping estimation.
-#' 
+#'
 #' This is the CTVEM function which serves for performing bootstrapping estimation. The output of this function is the single estimation of the bootstrapping process, i.e., randomly select data rows from the original dataset, then do estimation.
-#' @param data Specify the data frame that contains the interested data, Time (measuing time) and ID column. MUST INCLUDE COLNAMES. 
+#' @param data Specify the data frame that contains the interested data, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
 #' @param Time The name of the Time column in the data E.G. Time = "Time" (must be specified).
 #' @param outcome This is the outcome variables. Specified as outcome="outcomevariablename" for a single variable or outcome=c("outcomevariablename1","outcomevariablename2"). If it is NULL, it will consider each variables as outcome once.
 #' @param ID The name of the ID column in the data E.G. ID = "ID"
-#' @param estimate The relationship which we are interested, estimate = "marginal" or "partial". Default is the "marginal". 
+#' @param estimate The relationship which we are interested, estimate = "marginal" or "partial". Default is the "marginal".
 #' @param Tpred The prediction start time, end time and step size. It is a c("start time","end time","step size") form
 #' @param signif_level Indicate the significance level of the confidence intervals. The default value is 0.05
 #' @param boot Indicate if we perform bootstrapping estimation or not. If boot == True, we perfomr bootstrapping estimation. The default value is False
@@ -19,19 +19,20 @@
 
 
 CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "marginal", Tpred = seq(0,50,1),datamanipu = "DT", plot_show = FALSE,signif_level = 0.05, boot = FALSE ,output_type = "CI", standardized=TRUE,method = "bam",gamma=1,k=10,k3=3){
-  
+
+
   #LOAD NECESSARY PACKAGES
   #library(mgcv) #USED FOR THE PRIMARY ANALYSES
   #library(plyr)
   #library(zoo)
   #library(reshape2)
-  
+
   # Check if the data includes the colnames
   if (is.null(colnames(data))){
     stop("ERROR: Please include colnames for your dataset")
   }
-  
-  
+
+
   # Get the names of variables
   colnames_data = colnames(data)
   varnames = colnames_data[-c(which(colnames_data == ID), which(colnames_data == Time))]
@@ -39,14 +40,14 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
     stop("ERROR: At least one ID is missing. Missing data is not allowed in the ID column. Replace and re-run")
   }
   numberofpeople<-as.numeric(length(unique(data[,ID]))) #NUMBER OF PEOPLE = NUMBER OF UNIQUE IDs in DATAFRAME
-  
+
   # # Build randomly choosen data
   # Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
   # data_select = data[Select,]
   # data_select = data.frame(data_select)
-  # 
+  #
   #data[,"Time"]=data[,Time]
-  
+
 
   # Prepare some values
   predictionstart = Tpred[1]
@@ -54,26 +55,26 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
   predictionsinterval = Tpred[3]
   numberofknots = k
   list_name = c() # Use to give the name of the ouput list
-  
+
   # Build matrix to store results
-  # When the outcomes is not specified, we will consider each variable as outcome once and return all marginal/partial effects. E.g. if there are three variables X1, X2 and X3. 
-  # the number of total marginal effects we want to consider is 3X3. 
+  # When the outcomes is not specified, we will consider each variable as outcome once and return all marginal/partial effects. E.g. if there are three variables X1, X2 and X3.
+  # the number of total marginal effects we want to consider is 3X3.
   if(is.null(outcome)){
     Result_length = length(varnames)*length(varnames)
   }else{ # with specified outcomes. E.g. three variables X1, X2 and X3. Outcome is c("X1","X2"). We only consider 3X2 = 6 marginal/partial effects
     Result_length = length(outcome)*length(varnames)
   }
-  
+
   # We just need the point estimation for doing bootstrapping estimation
   #Single_preds = matrix(nrow = Result_length,ncol = length(seq(predictionstart, predictionsend, by = predictionsinterval))) # Contain each marginal effects estimation in order
-  Single_preds = vector("list",length = Result_length) # Contain each marginal effects estimation 
+  Single_preds = vector("list",length = Result_length) # Contain each marginal effects estimation
   Single_highCI = vector("list",length = Result_length) # Contain Upper CI for each marginal effects estimation
   Singel_lowCI = vector("list", length = Result_length) # Contain Lower CI for each marginal effects estimation
 
-  
+
   # Estimate marginal effects
   if(estimate == "marginal"){
-    
+
     # When the outcomes is not specified, we will consider each variable as outcome once and return all marginal effects
     if(is.null(outcome)){
       varnames_mat <- as.matrix(expand.grid(varnames, varnames))
@@ -115,10 +116,10 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
       list_name = c(list_name, namesofnewpredictorvariables)
     }
   }
-  
+
   # Estimate partial effects
   if(estimate == "partial"){
-    # We can directly apply CTVEM to estimate all partial effects. So we do not need to use expand.grid to separate each effects. 
+    # We can directly apply CTVEM to estimate all partial effects. So we do not need to use expand.grid to separate each effects.
     # Do data manipulation
     if(is.null(outcome)){
       outcome_pcr = varnames
@@ -138,7 +139,7 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
       namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
       laglongreducedummy = datamanipulationout$laglongreducedummy
     }
-    
+
     # Run the CT estimation
     cat(paste("Perform ", estimate , " CTVEM estimation",".\n",sep=""))
     #print(head(laglongreducedummy))
@@ -158,12 +159,12 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
     }
     list_name = c(list_name, namesofnewpredictorvariables)
   }
-  
+
   names(Single_preds) = paste(estimate," ",list_name,sep = "")
   names(Single_highCI) = paste("HighCI ",estimate," " ,list_name,sep = "")
   names(Singel_lowCI) = paste("LowCI ",estimate," ",list_name,sep = "")
-  
-  
+
+
   if(boot == TRUE){
     list_names = names(Single_preds)
     returnmatrix = matrix(unlist(Single_preds), nrow = length(Single_preds),byrow = T) # Since we are doing bootstrapping estimation, we only need to return point estimation from the single CTVEM
@@ -176,9 +177,9 @@ CT_LAG_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "
     }else{
       return(list("est" = Single_preds, "attributes" = attributes))
     }
-    
+
   }
-  
+
 }
 
 
