@@ -38,6 +38,7 @@
 #' @import reshape2
 #' @import OpenMx
 #' @import Rcpp
+#' @export
 #' @examples
 #'
 
