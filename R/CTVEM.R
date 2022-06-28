@@ -38,7 +38,6 @@
 #' @import reshape2
 #' @import OpenMx
 #' @import Rcpp
-#' @export
 #' @examples
 #'
 
@@ -111,7 +110,6 @@ CTVEM <- function(data = NULL,
       method = method,
       gamma = gamma,
       k = k,
-      #datamanipu = datamanipu,
       ktrend = ktrend
     )
   }
