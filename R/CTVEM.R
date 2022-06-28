@@ -42,6 +42,9 @@
 #' @import doSNOW
 #' @import doParallel
 #' @import progress
+#' @import parallel
+#' @import iterators
+#' @import snow
 #' @export
 #' @examples
 #'
