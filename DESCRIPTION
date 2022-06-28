@@ -12,7 +12,11 @@ Imports:
     plyr,
     zoo,
     reshape2,
-    Rcpp
+    Rcpp,
+    doSNOW,
+    progress,
+    doParallel,
+    foreach
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.1.2
