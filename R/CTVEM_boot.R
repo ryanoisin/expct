@@ -41,10 +41,6 @@ CTVEM_boot <-
            ktrend = 3
            ) {
 
-    library(foreach)
-    library(doSNOW)
-    library(doParallel)
-    library(progress)
 
     if(is.null(ncores)){
     ncores = detectCores()/2
