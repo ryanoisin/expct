@@ -20,8 +20,8 @@
 #'
 CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpredictors,
                  outcome = outcome,
-                 predictionstart = predictionstart,
-                 predictionsend = predictionsend,
+                 # predictionstart = predictionstart,
+                 # predictionsend = predictionsend,
                  namesofnewpredictorvariables = namesofnewpredictorvariables,
                  laglongreducedummy = laglongreducedummy,
                  method = "bam",
@@ -36,35 +36,56 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
   controlvariables = NULL
   predictionsinterval = 1
   for(j in 1:(length(namesofnewpredictorvariables))){
-    differentialterm=paste("s(timediff, by = ",namesofnewpredictorvariables[j],", k=",numberofknots,")",sep="")
+    differentialterm =
+      paste("s(timediff, by = ", namesofnewpredictorvariables[j], ", k=", numberofknots, ")", sep ="")
     if(j ==1){
-      differentialtermlist=differentialterm
+      differentialtermlist = differentialterm
     }else{
-      differentialtermlist=paste(differentialtermlist,differentialterm,sep=" + ")
+      differentialtermlist = paste(differentialtermlist, differentialterm, sep =
+                                     " + ")
     }
   }
 
   #WRITE THE MODEL STATEMENTS - NEW MULTIVARIATE OUTCOME
   if (is.null(controlvariables)==TRUE){ #IF CONTROL VARIABLES ARE NOT SPECIFIED
     # OR edited - check?
-    model<-as.formula(paste("outcome~",differentialtermlist,ifelse(ktrend <3,"", paste("+s(time,k=",ktrend,")"))))
+    model <-
+      as.formula(paste("outcome~", differentialtermlist, ifelse(
+        ktrend < 3, "", paste("+s(time,k=", ktrend, ")")
+      )))
   }else{ #IF CONTROL VARIABLES ARE  SPECIFIED
-    controlvariablelist=paste(controlvariables,collapse=" + ")
-    allpredictorvariables=paste(differentialtermlist,controlvariablelist,sep=" + ")
-    model<-as.formula(paste("outcome~",allpredictorvariables,"+s(time,k=",ktrend,")"))
+    controlvariablelist = paste(controlvariables, collapse = " + ")
+    allpredictorvariables = paste(differentialtermlist, controlvariablelist, sep = " + ")
+    model <- as.formula(paste("outcome~", allpredictorvariables, "+s(time,k=", ktrend, ")"))
   }
 
   #print(paste("Varying-coefficient model = ",paste(model)))
   #print(model)
   #NOW RUN THE USER SPECIFIED MODEL - MULTIVARIATE
-  if(method == "gam"){
-    trytest=try(mod <- gam(model, data=laglongreducedummy,na.action=na.omit,gamma=gamma),silent=TRUE)
-    if(try(summary(trytest)[2],silent=TRUE)=="try-error"){
+  if(method == "gam") {
+    trytest = try(mod <-
+                    gam(model,
+                        data = laglongreducedummy,
+                        na.action = na.omit,
+                        gamma = gamma),
+                  silent = TRUE)
+    if (try(summary(trytest)[2], silent = TRUE)
+        == "try-error") {
       stop("Error:CTest Failed. Try decreasing k.")
     }
-  }else{
-    trytest=try(mod <- bam(model, data=laglongreducedummy,na.action=na.omit,gamma=gamma,discrete=TRUE,method="fREML"),silent=TRUE)
-    if(try(summary(trytest)[2],silent=TRUE)=="try-error"){
+  } else{
+    trytest = try(mod <-
+                    bam(
+                      model,
+                      data = laglongreducedummy,
+                      na.action = na.omit,
+                      gamma = gamma,
+                      discrete = TRUE,
+                      method = "fREML"
+                    ),
+                  silent = TRUE)
+    if (try(summary(trytest)[2], silent = TRUE)
+        == "try-error") {
       stop("Error:CTest Failed. Try decreasing k.")
     }
   }
@@ -104,61 +125,64 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
   #SET UP PREDICTIONS MATRIX (CALLED pdat)
   #CHANING largestlagdiff to length((predictionstart/predictionsinterval):(predictionsend/predictionsinterval)*predictionsinterval)
   #REVISED PDAT WITH 10x Sampling
-  if(is.null(predictionstart)){
-    mindiff<-min(laglongreducedummy$timediff,na.rm=TRUE)
-    predictionstart<-mindiff
-  }
-  if(is.null(predictionsend)){
-    maxdiff<-max(laglongreducedummy$timediff,na.rm=TRUE)
-    predictionsend<-maxdiff
-  }
-  if(is.null(predictionsinterval)){
-    mindiff<-min(laglongreducedummy$timediff,na.rm=TRUE)
-    #if(isTRUE(blockdata)){ #IF BLOCK DATA IS YES THEN DIVIDE THE MINIMUM DIFFERENCE BY 10 FOR PRECISION
-    #  predictionsinterval<-mindiff/10
-    #}else{
-    predictionsinterval<-mindiff
-    #}
-  }
+  # if (is.null(predictionstart)) {
+  #   mindiff <- min(laglongreducedummy$timediff, na.rm = TRUE)
+  #   predictionstart <- mindiff
+  # }
+  # if (is.null(predictionsend)) {
+  #   maxdiff <- max(laglongreducedummy$timediff, na.rm = TRUE)
+  #   predictionsend <- maxdiff
+  # }
+  # if (is.null(predictionsinterval)) {
+  #   mindiff <- min(laglongreducedummy$timediff, na.rm = TRUE)
+  #   #if(isTRUE(blockdata)){ #IF BLOCK DATA IS YES THEN DIVIDE THE MINIMUM DIFFERENCE BY 10 FOR PRECISION
+  #   #  predictionsinterval<-mindiff/10
+  #   #}else{
+  #   predictionsinterval <- mindiff
+  #   #}
+  # }
 
 
-  timepred=seq(from=predictionstart,to=predictionsend,by=predictionsinterval)
-  #print(paste("long model is =",model))
-  pdat=matrix(NA,nrow=length(timepred),ncol=lengthcovariates)
-  #print(paste(lengthcovariates,lengthcovariates)
-  #print(paste("pdat ncol=",ncol(pdat)))
+  # Tpred = seq(from = predictionstart, to = predictionsend, by = predictionsinterval)
 
-  pdat[,1]=timepred
-  pdat[,2]=0
-  pdat[,3:(length(differentialtimevaryingpredictors)*length(outcome)+2)]=1
-  if(length(controlvariables)>0){ #IF THE COVARIATES ARE INCLUDED, 0 ZERO OUT THE COVARIATES
-    pdat[,(lengthcovariates-length(controlvariables)+1):lengthcovariates]=0
-  }
-  pdat<-data.frame(pdat)
-  names(pdat)[1] <- "timediff"
-  names(pdat)[2] <- "time"
+  # #print(paste("long model is =",model))
+  # pdat = matrix(NA, nrow = length(Tpred), ncol = lengthcovariates)
+  # #print(paste(lengthcovariates,lengthcovariates)
+  # #print(paste("pdat ncol=",ncol(pdat)))
+  #
+  # pdat[,1]=Tpred
+  # pdat[,2]=0
+  # pdat[,3:(length(differentialtimevaryingpredictors)*length(outcome)+2)]=1
+  # if (length(controlvariables) > 0) {
+  #   #IF THE COVARIATES ARE INCLUDED, 0 ZERO OUT THE COVARIATES
+  #   pdat[, (lengthcovariates - length(controlvariables) + 1):lengthcovariates] = 0
+  # }
+  # pdat <- data.frame(pdat)
+  # names(pdat)[1] <- "timediff"
+  # names(pdat)[2] <- "time"
+  #
+  # tempnumbcount = 2
+  #
+  # #NAME THE VARIABLES IN PDAT
+  # for (j in 1:length(outcome)){
+  #   for(jj in 1:length(differentialtimevaryingpredictors)){ #NAME THE DIFFERENTIAL TIME VARYING EFFECT VARIABLES
+  #     tempnumbcount=tempnumbcount+1
+  #     names(pdat)[tempnumbcount] <- paste(differentialtimevaryingpredictors[jj],"lagon",outcome[j],sep="")
+  #   }
+  # }
+  # tempnumbcount=lengthcovariates-length(controlvariables)*length(outcome)
+  # if(length(controlvariables)>0){
+  #   for (jjj in 1:length(outcome)){
+  #     for (j in 1:length(controlvariables)){ #NAME THE DIFFERENTIAL TIME VARYING EFFECT VARIABLES
+  #       tempnumbcount=tempnumbcount+1
+  #       jj=j+1+length(differentialtimevaryingpredictors)
+  #       names(pdat)[tempnumbcount] <- paste(controlvariables[j],sep="")
+  #     }
+  #   }
+  # }
+  #
+  #
+  # returnlist=list("mod"=mod,"pdat"=pdat)
 
-  tempnumbcount=2
-
-  #NAME THE VARIABLES IN PDAT
-  for (j in 1:length(outcome)){
-    for(jj in 1:length(differentialtimevaryingpredictors)){ #NAME THE DIFFERENTIAL TIME VARYING EFFECT VARIABLES
-      tempnumbcount=tempnumbcount+1
-      names(pdat)[tempnumbcount] <- paste(differentialtimevaryingpredictors[jj],"lagon",outcome[j],sep="")
-    }
-  }
-  tempnumbcount=lengthcovariates-length(controlvariables)*length(outcome)
-  if(length(controlvariables)>0){
-    for (jjj in 1:length(outcome)){
-      for (j in 1:length(controlvariables)){ #NAME THE DIFFERENTIAL TIME VARYING EFFECT VARIABLES
-        tempnumbcount=tempnumbcount+1
-        jj=j+1+length(differentialtimevaryingpredictors)
-        names(pdat)[tempnumbcount] <- paste(controlvariables[j],sep="")
-      }
-    }
-  }
-
-
-  returnlist=list("mod"=mod,"pdat"=pdat)
-  return(returnlist)
+  return(mod)
 }

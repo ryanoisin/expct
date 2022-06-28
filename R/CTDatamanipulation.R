@@ -1,4 +1,18 @@
-datasep_generate = function(differentialtimevaryingpredictors=NULL,outcome=NULL,data=NULL,ID="ID",Time="time",standardized=FALSE,predictionsend=30){
+datamanipulation = function(differentialtimevaryingpredictors = NULL,
+                            outcome = NULL,
+                            data = NULL,
+                            ID = "ID",
+                            Time = "time",
+                            standardized = FALSE,
+                            predictionsend = NULL) {
+
+
+  # note - you probably don't want to do this!
+  if(is.null(predictionsend)){
+    warning("predictionsend using max time diff in dataset. Are you sure you want this?")
+    predictionsend <- diff(data[nrow(data),Time], data[1,Time])
+  }
+
   names_matrix = as.matrix(expand.grid(differentialtimevaryingpredictors, outcome))
   namesofnewpredictorvariables = c()
   for (i in 1:nrow(names_matrix)){

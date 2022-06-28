@@ -21,8 +21,26 @@
 #' @param ktrend The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)
 #  return  a) point estimates, b) highCI, c) lowCI, but now based on the bootstrap
 
-CTVEM_boot<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "marginal",iterations = 50, quantiles = c(.025, 0.975),boot = TRUE, pivot = "Mean", Tpred = seq(0,30,1), plot_show = FALSE, ncores = NULL, standardized=TRUE,method = "bam", gamma=1,k=10,ktrend=3, datamanipu = "CT"){
-  if(is.null(ncores)){
+CTVEM_boot <-
+  function(data = NULL,
+           Time = "Time",
+           outcome = NULL,
+           ID = "ID",
+           estimate = "marginal",
+           iterations = 50,
+           quantiles = c(.025, 0.975),
+           boot = TRUE,
+           pivot = "Mean",
+           Tpred = seq(0, 30, 1),
+           plot_show = FALSE,
+           ncores = NULL,
+           standardized = TRUE,
+           method = "bam",
+           gamma = 1,
+           k = 10,
+           ktrend = 3
+           ) {
+    if(is.null(ncores)){
     ncores = detectCores()/2
   }
   cl =  makeCluster(ncores)
@@ -37,12 +55,26 @@ CTVEM_boot<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "mar
     pb$tick(tokens = list(letter = progress_letter[n]))
   }
   opts = list(progress = progress)
-  bootstrap_results = foreach(iii=1:iterations, .combine="rbind",.options.snow = opts,.export=c("CTVEM_single","datamanipulation","CTest","datasep_generate"),.packages = c("plyr","zoo","reshape2","mgcv","matrixStats")) %dopar%{
+  bootstrap_results = foreach(iii=1:iterations, .combine="rbind",.options.snow = opts,.export=c("CTVEM_single","datamanipulation","CTest"),.packages = c("plyr","zoo","reshape2","mgcv","matrixStats")) %dopar%{
 
     Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
     data_select = data[Select,]
     data_select = data.frame(data_select)
-    CTVEM_single(data = data_select,Time = Time,ID = ID, estimate = estimate, Tpred = Tpred, plot_show = plot_show,outcome = outcome,boot = boot, standardized = standardized, method = method, gamma = gamma,k = k, ktrend = ktrend, datamanipu = datamanipu)
+    CTVEM_single(
+      data = data_select,
+      Time = Time,
+      ID = ID,
+      estimate = estimate,
+      Tpred = Tpred,
+      plot_show = plot_show,
+      outcome = outcome,
+      boot = boot,
+      standardized = standardized,
+      method = method,
+      gamma = gamma,
+      k = k,
+      ktrend = ktrend
+    )
   }
   stopCluster(cl)
 

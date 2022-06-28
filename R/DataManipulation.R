@@ -13,16 +13,24 @@
 #' @return The output of this will be (1) The data in a very long stacked format (called laglongreducedummy), (2) the data in a wide format with all lags for all variables, time, and time differences (called Timelagsdummy), (3) the name of the differentialtimevarying predictors (namesofnewpredictorvariables), and (4) the length of the long matrix (laglongmatrixlength)
 #' @export
 
-datamanipulation=function(input_list=input_list,differentialtimevaryingpredictors=NULL,outcome=NULL,data=NULL,ID="ID",Time=NULL,standardized=TRUE,predictionstart=NULL,predictionsend=NULL){
+datamanipulation_old <- function(input_list = input_list,
+                            differentialtimevaryingpredictors = NULL,
+                            outcome = NULL,
+                            data = NULL,
+                            ID = "ID",
+                            Time = NULL,
+                            standardized = TRUE,
+                            predictionstart = NULL,
+                            predictionsend = NULL) {
   #library(plyr)
   #library(zoo)
   #library(reshape2)
   predictionsinterval = 1
-  controlvariables=NULL
-  controllag=NULL
-  numberofvars=length(input_list)
+  controlvariables = NULL
+  controllag = NULL
+  numberofvars = length(input_list)
   #data<-data[with(data, order(ID, Time)), ]
-  newdata<-matrix(NA,nrow=nrow(data),ncol=(numberofvars+2)) #CREATING THIS FOR THE STANDARDIZED data
+  newdata <- matrix(NA, nrow = nrow(data), ncol = (numberofvars + 2)) #CREATING THIS FOR THE STANDARDIZED data
 
   #CREATE THE ID & TIME COLUMN IN A NEW DATASET
   newdata[,1]<-data[,ID] #ID Column
@@ -121,12 +129,12 @@ datamanipulation=function(input_list=input_list,differentialtimevaryingpredictor
     newdata[,j]<-standardizeddata #ADDING IT TO A NEW data MATRIX
     names(newdata)[j] <- variablename
 
-    #CREATE data FRAME FOR NEWDATA
-    newdata2=data.frame(newdata)
-    #LEFT OFF HERE NOT WORKING RIGHT FOR IPMM
+    # CREATE data FRAME FOR NEWDATA
+    newdata2 = data.frame(newdata)
+    # LEFT OFF HERE NOT WORKING RIGHT FOR IPMM
     #colnames(Timelags) #CHECK SUCCESS WITH THIS
-    ipmm=ipm+1+(i-1)*maxobs #THIS IS TO CALCULATE THE BEGINNING OF THE NEXT MATRIX SERIES
-    ipmmm=ipmm+maxobs
+    ipmm = ipm + 1 + (i - 1) * maxobs #THIS IS TO CALCULATE THE BEGINNING OF THE NEXT MATRIX SERIES
+    ipmmm = ipmm + maxobs
     Timelags[,ipmm:ipmmm] <- ddply(.data = newdata2, .variables = .(newdata[,1]), function(x){
       data.frame(lag(zoo(x[,j]), k = 0:negmaxlags))})
 
@@ -139,8 +147,8 @@ datamanipulation=function(input_list=input_list,differentialtimevaryingpredictor
 
 
 
-    ipmmmm=ipmm-1
-    ipmmmmmm=ipmm+maxlags#+length(((predictionstart/predictionsinterval):((predictionsend)/predictionsinterval)*predictionsinterval))
+    ipmmmm = ipmm - 1
+    ipmmmmmm = ipmm + maxlags#+length(((predictionstart/predictionsinterval):((predictionsend)/predictionsinterval)*predictionsinterval))
 
     #JULY 6 2016 CODE
     #NEED TO ADD RENAMING CONVENTION HERE
@@ -149,7 +157,8 @@ datamanipulation=function(input_list=input_list,differentialtimevaryingpredictor
     #if(beforeblock){ #THIS NEW CODE JULY 11, 2016
     #  names(Timelags)[ipmm:ipmmmmmm]<- paste(variablename2,"lag",c(0:maxlags),sep="") #OLD CODE
     #} else{#NEW CODE
-    names(Timelags)[ipmm:ipmmmmmm]<- paste(variablename2,"lag",(c(0:maxlags)*predictionsinterval),sep="")#THIS NEW CODE JULY 11, 2016
+    names(Timelags)[ipmm:ipmmmmmm] <-
+      paste(variablename2, "lag", (c(0:maxlags) * predictionsinterval), sep =  "")#THIS NEW CODE JULY 11, 2016
     #}#NEW CODE
 
     #NEW CODE, MAY CAUSE ERROR: names(Timelags)[ipmm:ipmmmmmm]<- paste(variablename2,"lag",(c(0:maxlags)*predictionsinterval),sep="")#RENAME ALL VARIABLES SO THAT THE NAMES ARE BETTER DESCRIPTIONS OF THE data

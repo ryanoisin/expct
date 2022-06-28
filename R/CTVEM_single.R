@@ -18,13 +18,33 @@
 #' @param ktrend The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)
 
 
-CTVEM_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "marginal", Tpred = seq(0,30,1),datamanipu = "DT", plot_show = FALSE, boot = FALSE ,output_type = "CI", standardized=TRUE,method = "bam",gamma=1,k=10,ktrend=3, quantiles = c(.025, 0.975)){
+CTVEM_single <-
+  function(data = NULL,
+           Time = "Time",
+           outcome = NULL,
+           ID = "ID",
+           estimate = "marginal",
+           Tpred = seq(0, 30, 1),
+           #datamanipu = "DT",
+           plot_show = FALSE,
+           boot = FALSE ,
+           output_type = "CI",
+           standardized = TRUE,
+           method = "bam",
+           gamma = 1,
+           k = 10,
+           ktrend = 3,
+           quantiles = c(.025, 0.975),
+           predictionsend  = NULL) {
 
   #LOAD NECESSARY PACKAGES
   #library(mgcv) #USED FOR THE PRIMARY ANALYSES
   #library(plyr)
   #library(zoo)
   #library(reshape2)
+
+  # here - make predictions end just slightly longer than Tpred max
+  if(is.null(predictionsend)) predictionsend <- max(Tpred)*1.1
 
   # Check if the data includes the colnames
   if (is.null(colnames(data))){
@@ -35,10 +55,11 @@ CTVEM_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "m
   # Get the names of variables
   colnames_data = colnames(data)
   varnames = colnames_data[-c(which(colnames_data == ID), which(colnames_data == Time))]
-  if(sum(is.na(unique(data[,ID])))>0){ #CHECK TO SEE IF THE THERE ARE ANY MISSING ID Variables #
+  if (sum(is.na(unique(data[, ID]))) > 0) {
+    # CHECK TO SEE IF THE THERE ARE ANY MISSING ID Variables #
     stop("ERROR: At least one ID is missing. Missing data is not allowed in the ID column. Replace and re-run")
   }
-  numberofpeople<-as.numeric(length(unique(data[,ID]))) #NUMBER OF PEOPLE = NUMBER OF UNIQUE IDs in DATAFRAME
+  numberofpeople <- as.numeric(length(unique(data[, ID]))) #NUMBER OF PEOPLE = NUMBER OF UNIQUE IDs in DATAFRAME
 
   # # Build randomly choosen data
   # Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
@@ -51,9 +72,9 @@ CTVEM_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "m
   # Prepare some values
   # Notice that the predictions interval is always 1 when we go to do data manipulation and estimations.
   # However, when we return the estimation values from DTVEM, we only care about the interested time points indicated by users
-  predictionstart = Tpred[1]
-  predictionsend = Tpred[length(Tpred)]
-  predictionsinterval = 1
+  # predictionstart = Tpred[1]
+  # predictionsend = Tpred[length(Tpred)]
+  # predictionsinterval = 1
   numberofknots = k
   list_name = c() # Use to give the name of the ouput list
 
@@ -87,36 +108,65 @@ CTVEM_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "m
       input_list = as.list(varnames_mat[i,]) # Get the input list, for the marginal case. There will always be only 2 variables
       differentialtimevaryingpredictors = varnames_mat[i,1] # Take the first variable as predictor
       outcome_mcr = varnames_mat[i,2] # Take the second variable as predictor
-      # Do data manipulation two versions
-      if(datamanipu == "DT"){
-        datamanipulationout = datamanipulation(input_list=input_list,differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,data=data,ID=ID,Time=Time,standardized=standardized,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval)
+
+      # now do data manipulation
+        datamanipulationout = datamanipulation(
+          differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+          outcome = outcome_mcr,
+          data = data,
+          ID = ID,
+          Time = Time,
+          standardized = standardized,
+          predictionsend = predictionsend
+        )
         lengthcovariates = datamanipulationout$lengthcovariates
         namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
         laglongreducedummy = datamanipulationout$laglongreducedummy
-      }else{
-        datamanipulationout = datasep_generate(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,data=data,ID=ID,Time=Time,standardized=standardized,predictionsend=predictionsend)
-        lengthcovariates = datamanipulationout$lengthcovariates
-        namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
-        laglongreducedummy = datamanipulationout$laglongreducedummy
-      }
+
+
       # Run the CT estimation
       cat(paste("Perform the ",i,"/",nrow(varnames_mat), " time " , estimate , " CTVEM estimation",".\n",sep=""))
+
       #print(head(laglongreducedummy))
-      estout = CTest(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_mcr,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval,namesofnewpredictorvariables=namesofnewpredictorvariables,laglongreducedummy=laglongreducedummy,method = method, gamma=gamma,numberofknots=numberofknots,ktrend=ktrend,lengthcovariates=lengthcovariates,plot_show = plot_show)
+      estout = CTest(
+        differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+        outcome = outcome_mcr,
+        # predictionstart = predictionstart,
+        # predictionsend = predictionsend,
+        # predictionsinterval = predictionsinterval,
+        namesofnewpredictorvariables = namesofnewpredictorvariables,
+        laglongreducedummy = laglongreducedummy,
+        method = method,
+        gamma = gamma,
+        numberofknots = numberofknots,
+        ktrend = ktrend,
+        lengthcovariates = lengthcovariates,
+        plot_show = plot_show
+      )
       # Do estimation
+      # @ Kejin 23 june - check below
+
+      # get model out
       model = estout$mod
-      pdat = estout$pdat
-      pdat2 = data.frame(timediff = Tpred,time = 0)
-      add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat2))
-      pdat3 = cbind(pdat2, add_mat)
-      colnames(pdat3)[3:ncol(pdat3)] = namesofnewpredictorvariables
-      predictions=predict(model,pdat3,type="terms",se="TRUE")
+
+      # make dummy frame for getting predictions out of model
+       pdat = data.frame(timediff = Tpred,time = 0)
+       add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat))
+       pdat2 = cbind(pdat, add_mat)
+       colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
+
+       # get predictions from model
+       predictions = predict(model, pdat2, type = "terms", se = "TRUE")
+
+      # compute CIs
       Single_preds[[i]] = as.vector(predictions$fit[,1])
-      Single_highCI[[i]] = as.vector(predictions$fit[,1])+qnorm(quantiles[2],lower.tail = T)*as.vector(predictions$se.fit[,1])
-      Singel_lowCI[[i]] = as.vector(predictions$fit[,1])+qnorm(quantiles[1],lower.tail = T)*as.vector(predictions$se.fit[,1])
+      Single_highCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[2], lower.tail = T) * as.vector(predictions$se.fit[, 1])
+      Singel_lowCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[1], lower.tail = T) *  as.vector(predictions$se.fit[, 1])
       list_name = c(list_name, namesofnewpredictorvariables)
     }
   }
+
+  # @ kejin - make below work the same as above!
 
   # Estimate partial effects
   if(estimate == "partial"){
@@ -129,30 +179,53 @@ CTVEM_single<-function(data=NULL,Time="Time",outcome=NULL,ID="ID", estimate = "m
     }
     input_list = as.list(varnames)
     differentialtimevaryingpredictors = varnames
-    if(datamanipu == "DT"){
-      datamanipulationout = datamanipulation(input_list=input_list,differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_pcr,data=data,ID=ID,Time=Time,standardized=standardized,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval)
+
+      datamanipulationout = datamanipulation(
+        differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+        outcome = outcome_pcr,
+        data = data,
+        ID = ID,
+        Time = Time,
+        standardized = standardized,
+        predictionsend = predictionsend
+      )
       lengthcovariates = datamanipulationout$lengthcovariates
       namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
       laglongreducedummy = datamanipulationout$laglongreducedummy
-    }else{
-      datamanipulationout = datasep_generate(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_pcr,data=data,ID=ID,Time=Time,standardized=standardized,predictionsend=predictionsend)
-      lengthcovariates = datamanipulationout$lengthcovariates
-      namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
-      laglongreducedummy = datamanipulationout$laglongreducedummy
-    }
+
 
     # Run the CT estimation
     cat(paste("Perform ", estimate , " CTVEM estimation",".\n",sep=""))
     #print(head(laglongreducedummy))
-    estout = CTest(differentialtimevaryingpredictors=differentialtimevaryingpredictors,outcome=outcome_pcr,predictionstart=predictionstart,predictionsend=predictionsend,predictionsinterval=predictionsinterval,namesofnewpredictorvariables=namesofnewpredictorvariables,laglongreducedummy=laglongreducedummy,method = method, gamma=gamma,numberofknots=numberofknots,ktrend=ktrend,lengthcovariates=lengthcovariates,plot_show = plot_show)
+    estout = CTest(
+      differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+      outcome = outcome_pcr,
+      # predictionstart = predictionstart,
+      # predictionsend = predictionsend,
+      # predictionsinterval = predictionsinterval,
+      namesofnewpredictorvariables = namesofnewpredictorvariables,
+      laglongreducedummy = laglongreducedummy,
+      method = method,
+      gamma = gamma,
+      numberofknots = numberofknots,
+      ktrend = ktrend,
+      lengthcovariates = lengthcovariates,
+      plot_show = plot_show
+    )
     # Do estimation
+    # get model out
     model = estout$mod
-    pdat = estout$pdat
-    pdat2 = data.frame(timediff = Tpred,time = 0)
-    add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat2))
-    pdat3 = cbind(pdat2, add_mat)
-    colnames(pdat3)[3:ncol(pdat3)] = namesofnewpredictorvariables
-    predictions=predict(model,pdat3,type="terms",se="TRUE")
+
+    # make dummy frame for getting predictions out of model
+    pdat = data.frame(timediff = Tpred,time = 0)
+    add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat))
+    pdat2 = cbind(pdat, add_mat)
+    colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
+
+    # get predictions from model
+    predictions = predict(model, pdat2, type = "terms", se = "TRUE")
+
+
     for (i in 1:length(Single_preds)) {
       Single_preds[[i]] = as.vector(predictions$fit[,i])
       Single_highCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[2],lower.tail = T)*as.vector(predictions$se.fit[,i])

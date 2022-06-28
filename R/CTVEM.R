@@ -1,9 +1,9 @@
 # to dos:
-# - suppress detrending? k3 = FALSE? k3 = 0? check CTest (line 50) %%Solution: by adding an argument time_trend, if time_trend = FALSE, k3 = 0
+# - suppress detrending? k3 = FALSE? k3 = 0? check CTest (line 50) %%Solution: by adding an argument time_trend, if time_trend = FALSE, k3 = 0 %%FINISHED
 # - make evertyhing into one function call %%Solution: add a boot argument in the CT_LAG function.
 # - make version control on github  %%FINISHED
 # - output looking the same %% FINISHED
-# - efficiency (nick suggestions) %% Add an argument bam to indicate if we use the bam function to run these code. NEED TO DO IT
+# - efficiency (nick suggestions) %% Add an argument bam to indicate if we use the bam function to run these code.%% FINISHED
 # - test bootstrap feasibility
 
 
@@ -60,7 +60,7 @@ CTVEM <- function(data = NULL,
                   iterations = 10,
                   quantiles = c(.025, 0.975),
                   pivot = "Mean",
-                  datamanipu = "DT",
+                  #datamanipu = "DT",
                   ncores = NULL
 ) {
 
@@ -90,7 +90,7 @@ CTVEM <- function(data = NULL,
       method = method,
       gamma = gamma,
       k = k,
-      datamanipu = datamanipu,
+      #datamanipu = datamanipu,
       ktrend = ktrend
     )
   }else if(boot == TRUE){
@@ -111,7 +111,7 @@ CTVEM <- function(data = NULL,
       method = method,
       gamma = gamma,
       k = k,
-      datamanipu = datamanipu,
+      #datamanipu = datamanipu,
       ktrend = ktrend
     )
   }
