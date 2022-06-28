@@ -184,5 +184,5 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
   #
   # returnlist=list("mod"=mod,"pdat"=pdat)
 
-  return(mod)
+  return(list("mod"=mod))
 }

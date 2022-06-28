@@ -38,6 +38,10 @@
 #' @import reshape2
 #' @import OpenMx
 #' @import Rcpp
+#' @import foreach
+#' @import doSNOW
+#' @import doParallel
+#' @import progress
 #' @export
 #' @examples
 #'

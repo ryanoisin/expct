@@ -146,8 +146,8 @@ CTVEM_single <-
       # Do estimation
       # @ Kejin 23 june - check below
 
-      # get model out
-      model = estout$mod
+       # get model out
+       model = estout$mod
 
       # make dummy frame for getting predictions out of model
        pdat = data.frame(timediff = Tpred,time = 0)
