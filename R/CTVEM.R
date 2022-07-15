@@ -39,12 +39,9 @@
 #' @import OpenMx
 #' @import Rcpp
 #' @import foreach
-#' @import doSNOW
-#' @import doParallel
-#' @import progress
 #' @import parallel
+#' @import pbapply
 #' @import iterators
-#' @import snow
 #' @export
 #' @examples
 #'
@@ -78,7 +75,7 @@ CTVEM <- function(data = NULL,
   #library(reshape2)
   #
   if(time_trend==FALSE){ # Suppress the time trend by setting k3 = 0
-    k3 = 0
+    ktrend = 0
   }
 
   if(boot == FALSE){

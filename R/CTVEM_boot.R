@@ -48,9 +48,11 @@ CTVEM_boot <-
   }
 
   # make cluster and export required vars
-  cl <- makeCluster(ncores)
-  export_vars <- c("Data", "Time", "ID", "estimate", "Tpred", "plot_show", "outcome", "boot", "standardized", "method", "gamma", "k", "ktrend")
-  clusterExport(clus = cl, varlist = export_vars, envir = environment())
+  cl <- parallel::makeCluster(ncores)
+  export_vars <- c("data", "Time", "ID", "estimate", "Tpred", "plot_show", "outcome",
+                   "boot", "standardized", "method", "gamma", "k", "ktrend",
+                   "CTVEM_single","datamanipulation","CTest")
+  parallel::clusterExport(cl = cl, varlist = export_vars, envir = environment())
 
   # pb = progress_bar$new(
   #   format = ":letter [:bar] :elapsed | eta: :eta",
@@ -65,12 +67,12 @@ CTVEM_boot <-
   print(paste("Perform bootstrapping estimation with bootstrapping times = ", iterations, " ; Use ", ncores, " CPU cores"))
   # if we want progress bars use pbapply::pblapply()
 
-  bootstrap_results <- parLapply(clus = cl, X = 1:iterations, FUN = function(i) {
+  bootstrap_results <- pblapply(cl = cl, X = 1:iterations, FUN = function(i) {
     Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
     data_select = data[Select,]
     data_select = data.frame(data_select)
-    
-    CTVEM_single(
+
+    CTVEM:::CTVEM_single(
       data = data_select,
       Time = Time,
       ID = ID,

@@ -13,12 +13,10 @@ Imports:
     zoo,
     reshape2,
     Rcpp,
-    doSNOW,
-    progress,
-    doParallel,
+    OpenMx,
     foreach,
     iterators,
-    snow,
+    pbapply,
     parallel
 Encoding: UTF-8
 LazyData: true

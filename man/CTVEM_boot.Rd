@@ -59,6 +59,9 @@ CTVEM_boot(
 
 \item{ktrend}{The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)}
 }
+\value{
+a) point estimates, b) highCI, c) lowCI, but now based on the bootstrap_results
+}
 \description{
 This is the CTVEM function which performs bootstrapping estimation. The output of this function is the point estimations, high and low cooresponding CIs.
 }
