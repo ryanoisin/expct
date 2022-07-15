@@ -19,7 +19,8 @@
 #' @param gamma This can be used to change the wiggliness of the model. This can be useful if the model is too smooth (i.e flat). The lower the number the more wiggly this will be (see ?gam in MGCV for more information). The default is equal to 1. (OPTIONAL, UNCOMMONLY SPECIFIED)
 #' @param k The number of k selection points used in the model for stage 1 (see ?choose.k in mgcv package for more details) The ideal k is the maximum number of data points per person, but this slows down DTVEM and is often not required. (OPTIONAL, BUT RECOMMENDED)
 #' @param ktrend The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)
-#  return  a) point estimates, b) highCI, c) lowCI, but now based on the bootstrap
+#' @return  a) point estimates, b) highCI, c) lowCI, but now based on the bootstrap_results
+
 
 CTVEM_boot <-
   function(data = NULL,
@@ -42,26 +43,33 @@ CTVEM_boot <-
            ) {
 
 
-    if(is.null(ncores)){
+  if(is.null(ncores)){
     ncores = detectCores()/2
   }
-  cl =  makeCluster(ncores)
-  registerDoSNOW(cl)
-  print(paste("Perform bootstrapping estimation with bootstrapping times = ", iterations, " ; Use ", ncores, " CPU cores"))
-  pb = progress_bar$new(
-    format = ":letter [:bar] :elapsed | eta: :eta",
-    total = iterations,
-    width = 60)
-  progress_letter <- rep("Running", iterations)
-  progress <- function(n){
-    pb$tick(tokens = list(letter = progress_letter[n]))
-  }
-  opts = list(progress = progress)
-  bootstrap_results = foreach(iii=1:iterations, .combine="rbind",.options.snow = opts,.export=c("CTVEM_single","datamanipulation","CTest"),.packages = c("plyr","zoo","reshape2","mgcv","matrixStats")) %dopar%{
 
+  # make cluster and export required vars
+  cl <- makeCluster(ncores)
+  export_vars <- c("Data", "Time", "ID", "estimate", "Tpred", "plot_show", "outcome", "boot", "standardized", "method", "gamma", "k", "ktrend")
+  clusterExport(clus = cl, varlist = export_vars, envir = environment())
+
+  # pb = progress_bar$new(
+  #   format = ":letter [:bar] :elapsed | eta: :eta",
+  #   total = iterations,
+  #   width = 60)
+  # progress_letter <- rep("Running", iterations)
+  # progress <- function(n){
+  #   pb$tick(tokens = list(letter = progress_letter[n]))
+  # }
+  # opts = list(progress = progress)
+
+  print(paste("Perform bootstrapping estimation with bootstrapping times = ", iterations, " ; Use ", ncores, " CPU cores"))
+  # if we want progress bars use pbapply::pblapply()
+
+  bootstrap_results <- parLapply(clus = cl, X = 1:iterations, FUN = function(i) {
     Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
     data_select = data[Select,]
     data_select = data.frame(data_select)
+    
     CTVEM_single(
       data = data_select,
       Time = Time,
@@ -77,8 +85,35 @@ CTVEM_boot <-
       k = k,
       ktrend = ktrend
     )
-  }
+  })
+
+  # convert to matrix
+  bootstrap_results <- do.call("rbind", bootstrap_results)
+
+  # clean up cluster
   stopCluster(cl)
+
+  # bootstrap_results = foreach(iii=1:iterations, .combine="rbind",.options.snow = opts,.export=c("CTVEM_single","datamanipulation","CTest"),.packages = c("plyr","zoo","reshape2","mgcv","matrixStats")) %dopar%{
+
+  #   Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
+  #   data_select = data[Select,]
+  #   data_select = data.frame(data_select)
+  #   CTVEM_single(
+  #     data = data_select,
+  #     Time = Time,
+  #     ID = ID,
+  #     estimate = estimate,
+  #     Tpred = Tpred,
+  #     plot_show = plot_show,
+  #     outcome = outcome,
+  #     boot = boot,
+  #     standardized = standardized,
+  #     method = method,
+  #     gamma = gamma,
+  #     k = k,
+  #     ktrend = ktrend
+  #   )
+  # }
 
   # Analyze bootstrapping results
   # Get how many time-varying effects we have
