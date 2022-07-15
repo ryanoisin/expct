@@ -211,68 +211,90 @@ datamanipulation_old <- function(input_list = input_list,
   numberofoutcomes=length(outcome) #COUNT NUMBER OF OUTCOMES
 
   #NOW STACK data FOR EACH OUTCOME
-  blankdummyvars=matrix(NA,nrow=nrow(Timelags),ncol=numberofoutcomes)
-  blankdummyvars=data.frame(blankdummyvars)
-  names(blankdummyvars)[1:numberofoutcomes]=paste("Dummy",1:numberofoutcomes,sep="")
-  Timelags=cbind(Timelags,blankdummyvars)
-  namesofnewpredictorvariableswithnawide=NULL
+  blankdummyvars = matrix(NA, nrow = nrow(Timelags), ncol = numberofoutcomes)
+  blankdummyvars = data.frame(blankdummyvars)
+  names(blankdummyvars)[1:numberofoutcomes] = paste("Dummy", 1:numberofoutcomes, sep = "")
+  Timelags = cbind(Timelags, blankdummyvars)
+  namesofnewpredictorvariableswithnawide = NULL
   for(i in 1:numberofoutcomes){
-    Timelagstemp=Timelags
-    Timelagstemp[,paste("Dummy",i,sep="")]=1
-    Timelagstemp[,paste("Dummy",as.vector(1:numberofoutcomes)[-i],sep="")]=0
-    Timelagstemp$outcome=Timelagstemp[,paste(outcome[i],"lag0",sep="")]
+    Timelagstemp = Timelags
+    Timelagstemp[, paste("Dummy", i, sep = "")] = 1
+    Timelagstemp[, paste("Dummy", as.vector(1:numberofoutcomes)[-i], sep = "")] = 0
+    Timelagstemp$outcome = Timelagstemp[, paste(outcome[i], "lag0", sep = "")]
     for(ii in 1:length(differentialtimevaryingpredictors)){
       for(iii in 1:numberofoutcomes){
-        temporarynewvarmat=matrix(NA,nrow=nrow(Timelags),ncol=numberofoutcomes)
-        temporarynewvarmat=data.frame(temporarynewvarmat)
+        temporarynewvarmat = matrix(NA, nrow = nrow(Timelags), ncol = numberofoutcomes)
+        temporarynewvarmat = data.frame(temporarynewvarmat)
         #if(beforeblock){#NEW CODE JULY 10, 2016
         #  temporarynewvarmat=Timelagstemp[,paste("Dummy",iii,sep="")]*Timelagstemp[,paste(differentialtimevaryingpredictors[ii],"lag",(1:maxlags),sep="")] #OLD CODE
         #  names(temporarynewvarmat)[1:maxlags]=paste(differentialtimevaryingpredictors[ii],"lagon",outcome[iii],"lag",(1:maxlags),sep="") #OLD CODE
         #}else{#NEW CODE JULY 10, 2016
-        temporarynewvarmat=Timelagstemp[,paste("Dummy",iii,sep="")]*Timelagstemp[,paste(differentialtimevaryingpredictors[ii],"lag",(1:maxlags)*predictionsinterval,sep="")] #July 6 2016, EDIT ADDED *time
-        names(temporarynewvarmat)[1:maxlags]=paste(differentialtimevaryingpredictors[ii],"lagon",outcome[iii],"lag",(1:maxlags)*predictionsinterval,sep="") #OLD CODE
+        temporarynewvarmat = Timelagstemp[, paste("Dummy", iii, sep = "")] * Timelagstemp[, paste(differentialtimevaryingpredictors[ii],
+                                                                                                  "lag",
+                                                                                                  (1:maxlags) * predictionsinterval,
+                                                                                                  sep = "")] #July 6 2016, EDIT ADDED *time
+        names(temporarynewvarmat)[1:maxlags] = paste(
+          differentialtimevaryingpredictors[ii],
+          "lagon",
+          outcome[iii],
+          "lag",
+          (1:maxlags) * predictionsinterval,
+          sep = ""
+        ) #OLD CODE
         #}#NEW CODE JULY 10, 2016
-        if(iii==1){
-          temporarynewvarmatBACKUP=temporarynewvarmat
-        }else{
-          temporarynewvarmatBACKUP=cbind(temporarynewvarmatBACKUP,temporarynewvarmat)
+        if (iii == 1) {
+          temporarynewvarmatBACKUP = temporarynewvarmat
+        } else{
+          temporarynewvarmatBACKUP = cbind(temporarynewvarmatBACKUP, temporarynewvarmat)
         }
       }
 
-      Timelagstemp=cbind(Timelagstemp,temporarynewvarmatBACKUP)
-      namesofnewpredictorvariableswithnawide=unique(as.vector(c(namesofnewpredictorvariableswithnawide,paste(differentialtimevaryingpredictors[ii],"lagon",outcome[i],"lag",maxlags,sep=""))))
-      namesofnewpredictorvariableswide=namesofnewpredictorvariableswithnawide[!is.na(namesofnewpredictorvariableswithnawide)]
+      Timelagstemp = cbind(Timelagstemp, temporarynewvarmatBACKUP)
+      namesofnewpredictorvariableswithnawide = unique(as.vector(c(
+        namesofnewpredictorvariableswithnawide,
+        paste(
+          differentialtimevaryingpredictors[ii],
+          "lagon",
+          outcome[i],
+          "lag",
+          maxlags,
+          sep = ""
+        )
+      )))
+      namesofnewpredictorvariableswide = namesofnewpredictorvariableswithnawide[!is.na(namesofnewpredictorvariableswithnawide)]
     }
-    if(i==1){
-      Timelagsdummy<-Timelagstemp
-    }else{
-      Timelagsdummy<-rbind(Timelagsdummy,Timelagstemp)
+    if(i==1) {
+      Timelagsdummy <- Timelagstemp
+    } else{
+      Timelagsdummy <- rbind(Timelagsdummy, Timelagstemp)
     }
   }
 
   ###END OF MULTIVARIATE STACKING FOR WIDE data
 
 
-  laglongreduce <-laglong #na.exclude(laglong) TRYING TO KEEP THE NA data
-  laglongreduce<-data.frame(laglongreduce)
-  laglongreduce[,3]<-as.numeric(laglongreduce[,3])
-  laglongreduce<-data.frame(laglongreduce)
+  laglongreduce <-
+    laglong #na.exclude(laglong) TRYING TO KEEP THE NA data
+  laglongreduce <- data.frame(laglongreduce)
+  laglongreduce[, 3] <- as.numeric(laglongreduce[, 3])
+  laglongreduce <- data.frame(laglongreduce)
   #NAMING COLUMNS
   names(laglongreduce)[1] <- "ID"
   names(laglongreduce)[2] <- "time"
   names(laglongreduce)[3] <- "timediff"
   for (i in 1:numberofvars){
-    colnamestable=2+2*i
-    colnamevar=3+2*i
-    lagvarname=paste(input_list[i],"lag",sep="")
+    colnamestable = 2 + 2 * i
+    colnamevar = 3 + 2 * i
+    lagvarname = paste(input_list[i], "lag", sep = "")
     names(laglongreduce)[colnamestable] <- input_list[i]
     names(laglongreduce)[colnamevar] <- lagvarname
-    if(!is.null(controllag)){
-      for (ii in 1:length(controllag)){
-        controllagname<-paste(input_list[i],"controllag",controllag[ii],sep="")
-        numberofcontrols=length(controllag)*i-length(controllag)
-        controllagcolumn=2*numberofvars+3+numberofcontrols+ii
-        names(laglongreduce)[controllagcolumn]<-controllagname
+    if (!is.null(controllag)) {
+      for (ii in 1:length(controllag)) {
+        controllagname <-
+          paste(input_list[i], "controllag", controllag[ii], sep = "")
+        numberofcontrols = length(controllag) * i - length(controllag)
+        controllagcolumn = 2 * numberofvars + 3 + numberofcontrols + ii
+        names(laglongreduce)[controllagcolumn] <- controllagname
       }
     }
   }
@@ -280,37 +302,53 @@ datamanipulation_old <- function(input_list = input_list,
 
   #2014.10.24
   #ADDING MULTIVARIATE OUTCOME
-  numberofoutcomes=length(outcome) #COUNT NUMBER OF OUTCOMES
-
+  numberofoutcomes = length(outcome) #COUNT NUMBER OF OUTCOMES
   #NOW STACK data FOR EACH OUTCOME
-  blankdummyvars=matrix(NA,nrow=nrow(laglongreduce),ncol=numberofoutcomes)
-  blankdummyvars=data.frame(blankdummyvars)
-  names(blankdummyvars)[1:numberofoutcomes]=paste("Dummy",1:numberofoutcomes,sep="")
-  laglongreduce=cbind(laglongreduce,blankdummyvars)
-  namesofnewpredictorvariableswithna=NA
-  for(i in 1:numberofoutcomes){
-    laglongreducetemp=laglongreduce
-    laglongreducetemp[,paste("Dummy",i,sep="")]=1
-    laglongreducetemp[,paste("Dummy",as.vector(1:numberofoutcomes)[-i],sep="")]=0
-    laglongreducetemp$outcome=laglongreducetemp[,outcome[i]]
-    for(ii in 1:length(differentialtimevaryingpredictors)){
-      temporarynewvarmat=matrix(NA,nrow=nrow(laglongreduce),ncol=numberofoutcomes)
-      temporarynewvarmat=data.frame(temporarynewvarmat)
-      temporarynewvarmat=laglongreducetemp[,paste("Dummy",as.vector(1:numberofoutcomes),sep="")]*laglongreducetemp[,paste(differentialtimevaryingpredictors[ii],"lag",sep="")]
-      temporarynewvarmat=data.frame(temporarynewvarmat)
-      names(temporarynewvarmat)[1:numberofoutcomes]=paste(differentialtimevaryingpredictors[ii],"lagon",outcome,sep="")
-      laglongreducetemp=cbind(laglongreducetemp,temporarynewvarmat)
-      namesofnewpredictorvariableswithna=unique(as.vector(c(namesofnewpredictorvariableswithna,paste(differentialtimevaryingpredictors[ii],"lagon",outcome[i],sep=""))))
-      namesofnewpredictorvariables<-namesofnewpredictorvariableswithna[!is.na(namesofnewpredictorvariableswithna)]
+  blankdummyvars = matrix(NA, nrow = nrow(laglongreduce), ncol = numberofoutcomes)
+  blankdummyvars = data.frame(blankdummyvars)
+  names(blankdummyvars)[1:numberofoutcomes] = paste("Dummy", 1:numberofoutcomes, sep =
+                                                      "")
+  laglongreduce = cbind(laglongreduce, blankdummyvars)
+  namesofnewpredictorvariableswithna = NA
+  for (i in 1:numberofoutcomes) {
+    laglongreducetemp = laglongreduce
+    laglongreducetemp[, paste("Dummy", i, sep = "")] = 1
+    laglongreducetemp[, paste("Dummy", as.vector(1:numberofoutcomes)[-i], sep =
+                                "")] = 0
+    laglongreducetemp$outcome = laglongreducetemp[, outcome[i]]
+    for (ii in 1:length(differentialtimevaryingpredictors)) {
+      temporarynewvarmat = matrix(NA, nrow = nrow(laglongreduce), ncol = numberofoutcomes)
+      temporarynewvarmat = data.frame(temporarynewvarmat)
+      temporarynewvarmat = laglongreducetemp[, paste("Dummy", as.vector(1:numberofoutcomes), sep =
+                                                       "")] * laglongreducetemp[, paste(differentialtimevaryingpredictors[ii], "lag", sep =
+                                                                                          "")]
+      temporarynewvarmat = data.frame(temporarynewvarmat)
+      names(temporarynewvarmat)[1:numberofoutcomes] = paste(differentialtimevaryingpredictors[ii],
+                                                            "lagon",
+                                                            outcome,
+                                                            sep = "")
+      laglongreducetemp = cbind(laglongreducetemp, temporarynewvarmat)
+      namesofnewpredictorvariableswithna = unique(as.vector(c(
+        namesofnewpredictorvariableswithna,
+        paste(
+          differentialtimevaryingpredictors[ii],
+          "lagon",
+          outcome[i],
+          sep = ""
+        )
+      )))
+      namesofnewpredictorvariables <-
+        namesofnewpredictorvariableswithna[!is.na(namesofnewpredictorvariableswithna)]
     }
-    if(i==1){
-      laglongreducedummy=laglongreducetemp
-    }else{
-      laglongreducedummy=rbind(laglongreducedummy,laglongreducetemp)
+    if (i == 1) {
+      laglongreducedummy = laglongreducetemp
+    } else{
+      laglongreducedummy = rbind(laglongreducedummy, laglongreducetemp)
     }
   }
-  laglongreducedummybackup=laglongreducedummy
-  laglongreducedummy<- laglongreducedummy[laglongreducedummy[,3]>0,] #DELETING CONCURRENT TIMES
+  laglongreducedummybackup = laglongreducedummy
+  laglongreducedummy <-
+    laglongreducedummy[laglongreducedummy[, 3] > 0, ] #DELETING CONCURRENT TIMES
   #print(paste("predictionsend is equal to",predictionsend,"the number of rows in laglongreducedummy is ", nrow(laglongreducedummy)))
   if(!is.null(predictionsend)){
     laglongreducedummy <- laglongreducedummy[laglongreducedummy[,3]<=predictionsend,] #DELETING TIMES LESS THEN THE PREDICTIONS END

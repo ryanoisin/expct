@@ -13,7 +13,6 @@ Imports:
     zoo,
     reshape2,
     Rcpp,
-    OpenMx,
     foreach,
     iterators,
     pbapply,

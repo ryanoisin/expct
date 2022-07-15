@@ -36,7 +36,6 @@
 #' @import plyr
 #' @import zoo
 #' @import reshape2
-#' @import OpenMx
 #' @import Rcpp
 #' @import foreach
 #' @import parallel
