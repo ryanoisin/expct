@@ -52,7 +52,7 @@ CTVEM_boot <-
   export_vars <- c("data", "Time", "ID", "estimate", "Tpred", "plot_show", "outcome",
                    "boot", "standardized", "method", "gamma", "k", "ktrend",
                    "CTVEM_single","datamanipulation","CTest")
-  parallel::clusterExport(cl = cl, varlist = export_vars)
+  parallel::clusterExport(cl = cl, varlist = export_vars, envir = environment())
 
   # pb = progress_bar$new(
   #   format = ":letter [:bar] :elapsed | eta: :eta",
