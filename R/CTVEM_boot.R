@@ -67,7 +67,7 @@ CTVEM_boot <-
   print(paste("Perform bootstrapping estimation with bootstrapping times = ", iterations, " ; Use ", ncores, " CPU cores"))
   # if we want progress bars use pbapply::pblapply()
   # pbapply::pblapply(cl = cl, X = 1:iterations, FUN = function(i) {
-  bootstrap_results <- parLapply(cl = cl, X = 1:iterations, FUN = function(i) {
+  bootstrap_results <- parLapply(cl = cl, X = 1:iterations, fun = function(i) {
     Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
     data_select = data[Select,]
     data_select = data.frame(data_select)
