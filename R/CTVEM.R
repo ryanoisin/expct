@@ -64,7 +64,9 @@ CTVEM <- function(data = NULL,
                   quantiles = c(.025, 0.975),
                   pivot = "Mean",
                   #datamanipu = "DT",
-                  ncores = NULL
+                  ncores = NULL,
+                  ctype = "PSOCK"
+
 ) {
 
   #LOAD NECESSARY PACKAGES
@@ -114,7 +116,8 @@ CTVEM <- function(data = NULL,
       method = method,
       gamma = gamma,
       k = k,
-      ktrend = ktrend
+      ktrend = ktrend,
+      ctype = ctype
     )
   }
 
