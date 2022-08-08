@@ -19,7 +19,7 @@
 #' @param Tpred A vector which indicates that interested time points, e.g. seq(0,30,1)
 #' @param plot_show The option to suppress the plot outcomes. The default if FALSE which means the plot outcomes will not appear.
 #' @param boot Indicate if we perform bootstrapping estimation or not. If boot == True, we perfomr bootstrapping estimation. The default value is False
-#' @param output_type Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. The default value is "CI"
+#' @param output_type Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. If output_type =="SCI", the Simultaneous CIs will be returned. The default value is "CI"
 #' @param standardized This specifies whether all of the variables (aside from Time) should be standardized. Options are TRUE, FALSE, and "center". TRUE means within-person standardize each variable (aka get the person-centered z-scores), FALSE means use the raw data, "center" means to only within-person mean-center the variables. Default = TRUE. FALSE is not recommended unless you have done these transformations yourself (OPTIONAL)
 #' @param method Indicate which method will be used to estimate time-varying effetcs. The default value is "bam". Another option is "gam".
 #' @param gamma This can be used to change the wiggliness of the model. This can be useful if the model is too smooth (i.e flat). The lower the number the more wiggly this will be (see ?gam in MGCV for more information). The default is equal to 1. (OPTIONAL, UNCOMMONLY SPECIFIED)

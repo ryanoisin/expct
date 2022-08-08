@@ -10,7 +10,7 @@
 #' @param quantiles The quantiles to build bootstrapping CI, the default value is c(low_quantile, high_quantile) = c(.025, 0.975)
 #' @param boot Indicate if we perform bootstrapping estimation or not. If boot == True, we perfomr bootstrapping estimation. The default value is False
 #' @param plot_show The option to suppress the plot outcomes. The default if FALSE which means the plot outcomes will not appear.
-#' @param output_type Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. The default value is "CI"
+#' @param output_type Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. If output_type =="SCI", the Simultaneous CIs will be returned. The default value is "CI"
 #' @param standardized This specifies whether all of the variables (aside from Time) should be standardized. Options are TRUE, FALSE, and "center". TRUE means within-person standardize each variable (aka get the person-centered z-scores), FALSE means use the raw data, "center" means to only within-person mean-center the variables. Default = TRUE. FALSE is not recommended unless you have done these transformations yourself (OPTIONAL)
 #' @param method Indicate which method will be used to estimate time-varying effetcs. The default value is "bam". Another option is "gam".
 #' @param gamma This can be used to change the wiggliness of the model. This can be useful if the model is too smooth (i.e flat). The lower the number the more wiggly this will be (see ?gam in MGCV for more information). The default is equal to 1. (OPTIONAL, UNCOMMONLY SPECIFIED)
@@ -178,9 +178,31 @@ CTVEM_single <-
        predictions = predict(model, pdat2, type = "terms", se = "TRUE")
 
       # compute CIs
+      if(output_type == "CI"){
       Single_preds[[i]] = as.vector(predictions$fit[,1])
       Single_highCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[2], lower.tail = T) * as.vector(predictions$se.fit[, 1])
       Singel_lowCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[1], lower.tail = T) *  as.vector(predictions$se.fit[, 1])
+      }
+
+      if(output_type == "SCI"){
+        Single_preds[[i]] = as.vector(predictions$fit[,1])
+        NN = 10000  # The bootstrap times to generate the bias of estimation
+        Vb = vcov(model) # Compute the estimated covariance matrix of estimation of parameters
+        predictions_ = predict(model, pdat2, se.fit = "TRUE") # get the prediction on the selected grid with fit.se
+        se.fit = predictions_$se.fit
+        L = mroot(Vb)
+        mm = ncol(L)
+        mu = rep(0, nrow(Vb))
+        BUdiff = mu + L %*% matrix(rnorm(mm*NN), mm, NN) # Resample the value of bias of estimation under normally distributed assumption
+        Cg = predict(model, pdat2, type = "lpmatrix")
+        simDev = Cg %*% BUdiff
+        absDev = abs(sweep(simDev, 1, se.fit, FUN = "/"))
+        masd = apply(absDev, 2, max) # Estimate the distribution of the max standardized deviationbetween the true function and the model estimate
+        crit = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
+        Single_highCI[[i]] = as.vector(predictions$fit[,1]) + crit*predictions_$se.fit
+        Singel_lowCI[[i]] = as.vector(predictions$fit[,1]) - crit*predictions_$se.fit
+      }
+
       list_name = c(list_name, namesofnewpredictorvariables)
     }
   }
@@ -244,14 +266,55 @@ CTVEM_single <-
     # get predictions from model
     predictions = predict(model, pdat2, type = "terms", se = "TRUE")
 
-
-    for (i in 1:length(Single_preds)) {
+    if(output_type == "CI"){
+    for (i in 1:length(Single_preds)){
       Single_preds[[i]] = as.vector(predictions$fit[,i])
       Single_highCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[2],lower.tail = T)*as.vector(predictions$se.fit[,i])
       Singel_lowCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[1],lower.tail = T)*as.vector(predictions$se.fit[,i])
     }
+    }
+
+    if(output_type == "SCI"){
+      for (i in 1:length(Single_preds)){
+        Single_preds[[i]] = as.vector(predictions$fit[,i])
+        NN = 10000  # The bootstrap times to generate the bias of estimation
+        Vb = vcov(model) # Compute the estimated covariance matrix of estimation of parameters
+        predictions_ = predict(model, pdat2, se.fit = "TRUE") # get the prediction on the selected grid with fit.se
+        se.fit = predictions_$se.fit
+        L = mroot(Vb)
+        mm = ncol(L)
+        mu = rep(0, nrow(Vb))
+        BUdiff = mu + L %*% matrix(rnorm(mm*NN), mm, NN) # Resample the value of bias of estimation under normally distributed assumption
+        Cg = predict(model, pdat2, type = "lpmatrix")
+        simDev = Cg %*% BUdiff
+        absDev = abs(sweep(simDev, 1, se.fit, FUN = "/"))
+        masd = apply(absDev, 2, max) # Estimate the distribution of the max standardized deviationbetween the true function and the model estimate
+        crit = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
+        Single_highCI[[i]] = as.vector(predictions$fit[,i]) + crit*predictions_$se.fit
+        Singel_lowCI[[i]] = as.vector(predictions$fit[,i]) - crit*predictions_$se.fit
+      }
+    }
+
     list_name = c(list_name, namesofnewpredictorvariables)
   }
+
+
+  # if(output_type == "SCI"){
+  #   NN = 10000  # The bootstrap times to generate the bias of estimation
+  #   Vb = vcov(model)
+  #   se.fit = predictions$se.fit
+  #   L = mroot(Vb)
+  #   mm = ncol(L)
+  #   mu = rep(0, nrow(Vb))
+  #   BUdiff = mu + L %*% matrix(rnorm(mm*NN), mm, NN)
+  #   Cg = predict(model, pdat2, type = "lpmatrix")
+  #   simDev = Cg %*% BUdiff
+  #   absDev = abs(sweep(simDev, 1, se.fit[,1], FUN = "/"))
+  #   masd = apply(absDev, 2L, max)
+  #   high_crit = quantile(masd, prob = quantiles[2], type = 8)
+  #   low_crit = quantile(masd, prob = quantiles[1], type = 8)
+  # }
+
 
   names(Single_preds) = paste(estimate," ",list_name,sep = "")
   names(Single_highCI) = paste("HighCI ",estimate," " ,list_name,sep = "")
@@ -265,7 +328,7 @@ CTVEM_single <-
     return(returnmatrix)
   }else{
     attributes = list("Outcome variables" = outcome, "Estimate type" = estimate, "If standardize data" = standardized, "method" = method, "gamma" = gamma, "k" = k, "ktrend" = ktrend  )
-    if(output_type == "CI"){
+    if(output_type == "CI" | output_type == "SCI"){
       return(list("est" = Single_preds, "highCI" = Single_highCI, "lowCI" = Singel_lowCI, "attributes" = attributes))
     }else{
       return(list("est" = Single_preds, "attributes" = attributes))
