@@ -65,7 +65,8 @@ CTVEM <- function(data = NULL,
                   pivot = "Mean",
                   #datamanipu = "DT",
                   ncores = NULL,
-                  ctype = "PSOCK"
+                  ctype = "PSOCK",
+                  weighting = FALSE
 
 ) {
 
@@ -96,7 +97,8 @@ CTVEM <- function(data = NULL,
       gamma = gamma,
       k = k,
       #datamanipu = datamanipu,
-      ktrend = ktrend
+      ktrend = ktrend,
+      weighting = weighting
     )
   }else if(boot == TRUE){
     Result = CTVEM_boot(

@@ -16,6 +16,7 @@
 #' @param gamma This can be used to change the wiggliness of the model. This can be useful if the model is too smooth (i.e flat). The lower the number the more wiggly this will be (see ?gam in MGCV for more information). The default is equal to 1. (OPTIONAL, UNCOMMONLY SPECIFIED)
 #' @param k The number of k selection points used in the model for stage 1 (see ?choose.k in mgcv package for more details) The ideal k is the maximum number of data points per person, but this slows down DTVEM and is often not required. (OPTIONAL, BUT RECOMMENDED)
 #' @param ktrend The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)
+#' @param weighting Test option. Calculate weights for stacked data vector?
 
 
 CTVEM_single <-
@@ -35,7 +36,8 @@ CTVEM_single <-
            k = 10,
            ktrend = 3,
            quantiles = c(.025, 0.975),
-           predictionsend  = NULL) {
+           predictionsend  = NULL,
+           weighting = FALSE) {
 
   #LOAD NECESSARY PACKAGES
   #library(mgcv) #USED FOR THE PRIMARY ANALYSES
@@ -123,6 +125,20 @@ CTVEM_single <-
         namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
         laglongreducedummy = datamanipulationout$laglongreducedummy
 
+        # oisin added Weights
+        if(isTRUE(weighting)){
+          datamanipulationout$laglongreducedummy
+          timevec <- unique(datamanipulationout$laglongreducedummy$time)
+          occurs <- sapply(timevec, function(s) sum(datamanipulationout$laglongreducedummy$time == s))
+          weights_tmp <- 1/occurs
+          weights <- rep(NA,nrow(datamanipulationout$laglongreducedummy))
+          for(i in 1:length(timevec)){
+            weights[
+              datamanipulationout$laglongreducedummy$time == timevec[i],"weights"] <- weights_tmp[i]
+          }
+        }else{
+          weights <- NULL
+        }
 
       # Run the CT estimation
       cat(paste("Perform the ",i,"/",nrow(varnames_mat), " time " , estimate , " CTVEM estimation",".\n",sep=""))
@@ -141,7 +157,8 @@ CTVEM_single <-
         numberofknots = numberofknots,
         ktrend = ktrend,
         lengthcovariates = lengthcovariates,
-        plot_show = plot_show
+        plot_show = plot_show,
+        weights = weights
       )
       # Do estimation
       # @ Kejin 23 june - check below
