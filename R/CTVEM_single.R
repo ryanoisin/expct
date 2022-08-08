@@ -105,6 +105,7 @@ CTVEM_single <-
     }else{
       varnames_mat <- as.matrix(expand.grid(varnames, outcome))
     }
+    # browser()
     for (i in 1:nrow(varnames_mat)) {
       #i = 1
       input_list = as.list(varnames_mat[i,]) # Get the input list, for the marginal case. There will always be only 2 variables
@@ -124,6 +125,7 @@ CTVEM_single <-
         lengthcovariates = datamanipulationout$lengthcovariates
         namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
         laglongreducedummy = datamanipulationout$laglongreducedummy
+# browser()
 
         # oisin added Weights
         if(isTRUE(weighting)){
@@ -132,9 +134,9 @@ CTVEM_single <-
           occurs <- sapply(timevec, function(s) sum(datamanipulationout$laglongreducedummy$time == s))
           weights_tmp <- 1/occurs
           weights <- rep(NA,nrow(datamanipulationout$laglongreducedummy))
-          for(i in 1:length(timevec)){
+          for(qq in 1:length(timevec)){
             weights[
-              datamanipulationout$laglongreducedummy$time == timevec[i],"weights"] <- weights_tmp[i]
+              datamanipulationout$laglongreducedummy$time == timevec[qq]] <- weights_tmp[qq]
           }
         }else{
           weights <- NULL

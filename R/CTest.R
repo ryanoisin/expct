@@ -60,7 +60,7 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
     allpredictorvariables = paste(differentialtermlist, controlvariablelist, sep = " + ")
     model <- as.formula(paste("outcome~", allpredictorvariables, "+s(time,k=", ktrend, ")"))
   }
-
+# browser()
   #print(paste("Varying-coefficient model = ",paste(model)))
   #print(model)
   #NOW RUN THE USER SPECIFIED MODEL - MULTIVARIATE
@@ -70,7 +70,7 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
                         data = laglongreducedummy,
                         na.action = na.omit,
                         gamma = gamma,
-                        weights = NULL),
+                        weights = weights),
                   silent = TRUE)
     if (try(summary(trytest)[2], silent = TRUE)
         == "try-error") {
@@ -85,7 +85,7 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
                       gamma = gamma,
                       discrete = TRUE,
                       method = "fREML",
-                      weights = NULL
+                      weights = weights
                     ),
                   silent = TRUE)
     if (try(summary(trytest)[2], silent = TRUE)
