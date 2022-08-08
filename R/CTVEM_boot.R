@@ -82,7 +82,7 @@ CTVEM_boot <-
   bootstrap_results <-  pbapply::pblapply(cl = cl, X = datalist, FUN = function(i) {
      #data_select <- datalist[[i]]
 
-    CTVEM:::CTVEM_single(
+    CTVEM_single(
       data = i,
       Time = Time,
       ID = ID,

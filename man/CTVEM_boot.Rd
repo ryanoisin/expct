@@ -21,7 +21,8 @@ CTVEM_boot(
   method = "bam",
   gamma = 1,
   k = 10,
-  ktrend = 3
+  ktrend = 3,
+  ctype = "PSOCK"
 )
 }
 \arguments{

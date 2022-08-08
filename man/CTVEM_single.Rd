@@ -20,7 +20,8 @@ CTVEM_single(
   k = 10,
   ktrend = 3,
   quantiles = c(0.025, 0.975),
-  predictionsend = NULL
+  predictionsend = NULL,
+  weighting = FALSE
 )
 }
 \arguments{
@@ -53,6 +54,8 @@ CTVEM_single(
 \item{ktrend}{The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)}
 
 \item{quantiles}{The quantiles to build bootstrapping CI, the default value is c(low_quantile, high_quantile) = c(.025, 0.975)}
+
+\item{weighting}{Test option. Calculate weights for stacked data vector?}
 }
 \description{
 This is the CTVEM function which serves for performing bootstrapping estimation. The output of this function is the single estimation of the bootstrapping process, i.e., randomly select data rows from the original dataset, then do estimation.

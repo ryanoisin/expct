@@ -23,7 +23,9 @@ CTVEM(
   iterations = 10,
   quantiles = c(0.025, 0.975),
   pivot = "Mean",
-  ncores = NULL
+  ncores = NULL,
+  ctype = "PSOCK",
+  weighting = FALSE
 )
 }
 \arguments{
