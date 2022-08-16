@@ -66,7 +66,8 @@ CTVEM <- function(data = NULL,
                   #datamanipu = "DT",
                   ncores = NULL,
                   ctype = "PSOCK",
-                  weighting = FALSE
+                  weighting = FALSE,
+                  MBB_block = "Fixed"
 
 ) {
 
@@ -119,7 +120,8 @@ CTVEM <- function(data = NULL,
       gamma = gamma,
       k = k,
       ktrend = ktrend,
-      ctype = ctype
+      ctype = ctype,
+      MBB_block = MBB_block
     )
   }
 
