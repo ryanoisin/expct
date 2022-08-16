@@ -42,12 +42,29 @@ CTVEM_boot <-
            ktrend = 3,
            ctype = "PSOCK") {
 
-
+  if(boot == TRUE){
     datalist <- lapply(1:iterations, function(s){
       Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
       data_select = data[Select,]
       data.frame(data_select)
     })
+    }else if(boot == "MBB"){ # Overlapping-moving block bootstrap
+    datalist <- lapply(1:iterations, function(s){
+      n = nrow(data)
+      l = floor(n^(1/3)) # Apply the typical choice of the length of block. The block lenth l = n^(1/3).
+      num_p = n / l  # Find the number of block we need to recover the origianl length of the data
+      int_num_p = ceiling(num_p) # Take the ceiling number of num_p. Since num_p may not be an integer
+      select_order = sample(seq(1, nrow(data) - l + 1, 1),size = int_num_p,replace = T) # select the starting point of different block, 1,2,...,n-l+1
+      data_select = data[1,]    # combine all selected block
+      for (i in select_order) {
+        data_select = rbind(data_select, data[seq(i,i+l-1,1),])
+      }
+      data_select = data_select[-1,]
+      data_select =  data_select[1:n, ] # trim the bootstrap data to make the length is equal to the true data
+      data_select = data_select[order(data_select[,Time]),]
+      data.frame(data_select)
+    })
+    }
 
 
   if(is.null(ncores)){

@@ -100,7 +100,7 @@ CTVEM <- function(data = NULL,
       ktrend = ktrend,
       weighting = weighting
     )
-  }else if(boot == TRUE){
+  }else if(boot == TRUE | boot  == "MBB" ){
     Result = CTVEM_boot(
       data = data,
       Time = Time,
