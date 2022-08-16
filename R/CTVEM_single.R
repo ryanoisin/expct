@@ -321,7 +321,7 @@ CTVEM_single <-
   names(Singel_lowCI) = paste("LowCI ",estimate," ",list_name,sep = "")
 
 
-  if(boot == TRUE){
+  if(boot == TRUE | boot == "MBB"){
     list_names = names(Single_preds)
     returnmatrix = matrix(unlist(Single_preds), nrow = length(Single_preds),byrow = T) # Since we are doing bootstrapping estimation, we only need to return point estimation from the single CTVEM
     rownames(returnmatrix) = list_names
