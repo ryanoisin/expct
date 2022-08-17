@@ -67,7 +67,7 @@ CTVEM <- function(data = NULL,
                   ncores = NULL,
                   ctype = "PSOCK",
                   weighting = FALSE,
-                  MBB_block = "Fixed"
+                  MBB_block = "non-Fixed"
 
 ) {
 
