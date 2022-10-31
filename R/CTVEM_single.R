@@ -21,9 +21,9 @@
 
 CTVEM_single <-
   function(data = NULL,
-           Time = "Time",
+           Time = "time",
            outcome = NULL,
-           ID = "ID",
+           ID = "id",
            estimate = "marginal",
            Tpred = seq(0, 30, 1),
            #datamanipu = "DT",
@@ -93,7 +93,10 @@ CTVEM_single <-
   #Single_preds = matrix(nrow = Result_length,ncol = length(seq(predictionstart, predictionsend, by = predictionsinterval))) # Contain each marginal effects estimation in order
   Single_preds = vector("list",length = Result_length) # Contain each marginal effects estimation
   Single_highCI = vector("list",length = Result_length) # Contain Upper CI for each marginal effects estimation
-  Singel_lowCI = vector("list", length = Result_length) # Contain Lower CI for each marginal effects estimation
+  Single_lowCI = vector("list", length = Result_length) # Contain Lower CI for each marginal effects estimation
+  # if(output_type == "LLCI"){
+  #   Single_preds_max = vector("list",length = Result_length)
+  # }
 
 
   # Estimate marginal effects
@@ -107,7 +110,7 @@ CTVEM_single <-
     }
     # browser()
     for (i in 1:nrow(varnames_mat)) {
-      #i = 1
+      #i = 2
       input_list = as.list(varnames_mat[i,]) # Get the input list, for the marginal case. There will always be only 2 variables
       differentialtimevaryingpredictors = varnames_mat[i,1] # Take the first variable as predictor
       outcome_mcr = varnames_mat[i,2] # Take the second variable as predictor
@@ -162,8 +165,7 @@ CTVEM_single <-
         plot_show = plot_show,
         weights = weights
       )
-      # Do estimation
-      # @ Kejin 23 june - check below
+
 
        # get model out
        model = estout$mod
@@ -176,16 +178,14 @@ CTVEM_single <-
 
        # get predictions from model
        predictions = predict(model, pdat2, type = "terms", se = "TRUE")
-
+       Single_preds[[i]] = as.vector(predictions$fit[,1])
       # compute CIs
       if(output_type == "CI"){
-      Single_preds[[i]] = as.vector(predictions$fit[,1])
       Single_highCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[2], lower.tail = T) * as.vector(predictions$se.fit[, 1])
-      Singel_lowCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[1], lower.tail = T) *  as.vector(predictions$se.fit[, 1])
+      Single_lowCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[1], lower.tail = T) *  as.vector(predictions$se.fit[, 1])
       }
 
       if(output_type == "SCI"){
-        Single_preds[[i]] = as.vector(predictions$fit[,1])
         NN = 10000  # The bootstrap times to generate the bias of estimation
         Vb = vcov(model) # Compute the estimated covariance matrix of estimation of parameters
         predictions_ = predict(model, pdat2, se.fit = "TRUE") # get the prediction on the selected grid with fit.se
@@ -200,14 +200,86 @@ CTVEM_single <-
         masd = apply(absDev, 2, max) # Estimate the distribution of the max standardized deviationbetween the true function and the model estimate
         crit = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
         Single_highCI[[i]] = as.vector(predictions$fit[,1]) + crit*predictions_$se.fit
-        Singel_lowCI[[i]] = as.vector(predictions$fit[,1]) - crit*predictions_$se.fit
+        Single_lowCI[[i]] = as.vector(predictions$fit[,1]) - crit*predictions_$se.fit
       }
+
+       # add "large lag SE" @kejin
+      # sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(acf[1:ii]^2))) )
 
       list_name = c(list_name, namesofnewpredictorvariables)
     }
-  }
 
-  # @ kejin - make below work the same as above!
+    if(output_type == "LLCI"){ # Compute the se of correlation based on the large_lag method
+      Single_preds_all = vector("list",length = length(varnames)) # compute each single auto correlation effects
+      names(Single_preds_all) = varnames
+      for (ii in c(1:length(varnames))) {
+        differentialtimevaryingpredictors = varnames[ii] # Take the first variable as predictor
+        outcome_mcr = varnames[ii] # Take the second variable as predictor
+        datamanipulationout = datamanipulation(
+          differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+          outcome = outcome_mcr,
+          data = data,
+          ID = ID,
+          Time = Time,
+          standardized = standardized,
+          predictionsend = predictionsend
+        )
+        lengthcovariates = datamanipulationout$lengthcovariates
+        namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
+        laglongreducedummy = datamanipulationout$laglongreducedummy
+        estout = CTest(
+          differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+          outcome = outcome_mcr,
+          namesofnewpredictorvariables = namesofnewpredictorvariables,
+          laglongreducedummy = laglongreducedummy,
+          method = method,
+          gamma = gamma,
+          numberofknots = numberofknots,
+          ktrend = ktrend,
+          lengthcovariates = lengthcovariates,
+          plot_show = plot_show,
+          weights = weights
+        )
+        model = estout$mod
+        Tpred_max = seq(0, max(Tpred),1) # Since user may not be interested in the seq(0,30,1) time points, we estimate correlation effects at seq(0,max(Tpred),1)
+        # because the compuation of large_lag se need all previous information
+        pdat = data.frame(timediff = Tpred_max,time = 0)
+        add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat))
+        pdat2 = cbind(pdat, add_mat)
+        colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
+        # get predictions from model
+        predictions_max = predict(model, pdat2, type = "terms", se = "TRUE")
+        Single_preds_all[[ii]] = predictions_max$fit[,1]
+      }
+      n = nrow(data)
+      for (iii in c(1:nrow(varnames_mat))) {
+      if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
+        sd_acf = c()
+        for(l in Tpred){
+          sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[unique(varnames_mat[iii,])]][1:floor(l)]^2))) ) # Compute the large_lag_standard error
+        }
+        Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
+        Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
+      }else{
+        data_1_name = unique(varnames_mat[iii,])[1]
+        data_2_name = unique(varnames_mat[iii,])[2]
+        sub_data_1 = data[,data_1_name]
+        sub_data_2 = data[,data_2_name]
+        std_1 = sd(sub_data_1)
+        std_2 = sd(sub_data_2)
+        sd_ccf = c()
+        for (l in Tpred){
+          floor_l = floor(l)
+          sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
+        }
+
+        Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
+        Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
+      }
+      }
+    }
+
+  }
 
   # Estimate partial effects
   if(estimate == "partial"){
@@ -233,8 +305,6 @@ CTVEM_single <-
       lengthcovariates = datamanipulationout$lengthcovariates
       namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
       laglongreducedummy = datamanipulationout$laglongreducedummy
-
-
     # Run the CT estimation
     cat(paste("Perform ", estimate , " CTVEM estimation",".\n",sep=""))
     #print(head(laglongreducedummy))
@@ -265,18 +335,18 @@ CTVEM_single <-
 
     # get predictions from model
     predictions = predict(model, pdat2, type = "terms", se = "TRUE")
-
-    if(output_type == "CI"){
     for (i in 1:length(Single_preds)){
       Single_preds[[i]] = as.vector(predictions$fit[,i])
+    }
+    if(output_type == "CI"){
+    for (i in 1:length(Single_preds)){
       Single_highCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[2],lower.tail = T)*as.vector(predictions$se.fit[,i])
-      Singel_lowCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[1],lower.tail = T)*as.vector(predictions$se.fit[,i])
+      Single_lowCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[1],lower.tail = T)*as.vector(predictions$se.fit[,i])
     }
     }
 
     if(output_type == "SCI"){
       for (i in 1:length(Single_preds)){
-        Single_preds[[i]] = as.vector(predictions$fit[,i])
         NN = 10000  # The bootstrap times to generate the bias of estimation
         Vb = vcov(model) # Compute the estimated covariance matrix of estimation of parameters
         predictions_ = predict(model, pdat2, se.fit = "TRUE") # get the prediction on the selected grid with fit.se
@@ -291,34 +361,105 @@ CTVEM_single <-
         masd = apply(absDev, 2, max) # Estimate the distribution of the max standardized deviationbetween the true function and the model estimate
         crit = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
         Single_highCI[[i]] = as.vector(predictions$fit[,i]) + crit*predictions_$se.fit
-        Singel_lowCI[[i]] = as.vector(predictions$fit[,i]) - crit*predictions_$se.fit
+        Single_lowCI[[i]] = as.vector(predictions$fit[,i]) - crit*predictions_$se.fit
       }
     }
 
     list_name = c(list_name, namesofnewpredictorvariables)
+
+    if(output_type == "LLCI"){ # Compute the se of correlation based on the large_lag method partial version
+      # We need estimate all partial effects at one time since the large_lag se need these information
+      # Get the varmat as we did in the marginal estimation
+      if(is.null(outcome)){
+        varnames_mat <- as.matrix(expand.grid(varnames, varnames))
+      }else{
+        varnames_mat <- as.matrix(expand.grid(varnames, outcome))
+      }
+
+      Single_preds_all = vector("list",length = length(varnames)) # compute each single auto correlation effects
+      names(Single_preds_all) = varnames
+      differentialtimevaryingpredictors = varnames
+      datamanipulationout = datamanipulation(
+        differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+        outcome = varnames,
+        data = data,
+        ID = ID,
+        Time = Time,
+        standardized = standardized,
+        predictionsend = predictionsend
+      )
+      lengthcovariates = datamanipulationout$lengthcovariates
+      namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
+      laglongreducedummy = datamanipulationout$laglongreducedummy
+      cat(paste("Perform ", estimate , " CTVEM estimation for large lag CI",".\n",sep=""))
+      #print(head(laglongreducedummy))
+      estout = CTest(
+        differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+        outcome = outcome_pcr,
+        namesofnewpredictorvariables = namesofnewpredictorvariables,
+        laglongreducedummy = laglongreducedummy,
+        method = method,
+        gamma = gamma,
+        numberofknots = numberofknots,
+        ktrend = ktrend,
+        lengthcovariates = lengthcovariates,
+        plot_show = plot_show
+      )
+      model = estout$mod
+      Tpred_max = seq(0, max(Tpred),1)
+      pdat = data.frame(timediff = Tpred_max,time = 0)
+      add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat))
+      pdat2 = cbind(pdat, add_mat)
+      colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
+
+      # get predictions from model
+      predictions = predict(model, pdat2, type = "terms", se = "TRUE")
+
+      # Store the partial auto correlation effects of all variables
+      for(i in c(1:length(varnames))){
+        Single_preds_all[[i]] = predictions$fit[,paste("s(timediff):",varnames[i],"lagon",varnames[i],sep = "")]
+      }
+
+      n = nrow(data)
+      for (iii in c(1:nrow(varnames_mat))) {
+        if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
+          sd_acf = c()
+          for(l in Tpred){
+            sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[unique(varnames_mat[iii,])]][1:floor(l)]^2))) ) # Compute the large_lag_standard error
+          }
+          Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
+          Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
+        }else{
+          data_1_name = unique(varnames_mat[iii,])[1]
+          data_2_name = unique(varnames_mat[iii,])[2]
+          sub_data_1 = data[,data_1_name]
+          sub_data_2 = data[,data_2_name]
+          std_1 = sd(sub_data_1)
+          std_2 = sd(sub_data_2)
+          sd_ccf = c()
+          for (l in Tpred){
+            floor_l = floor(l)
+            sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
+          }
+
+          Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
+          Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
+        }
+      }
+    }
+
+
+
+
   }
 
 
-  # if(output_type == "SCI"){
-  #   NN = 10000  # The bootstrap times to generate the bias of estimation
-  #   Vb = vcov(model)
-  #   se.fit = predictions$se.fit
-  #   L = mroot(Vb)
-  #   mm = ncol(L)
-  #   mu = rep(0, nrow(Vb))
-  #   BUdiff = mu + L %*% matrix(rnorm(mm*NN), mm, NN)
-  #   Cg = predict(model, pdat2, type = "lpmatrix")
-  #   simDev = Cg %*% BUdiff
-  #   absDev = abs(sweep(simDev, 1, se.fit[,1], FUN = "/"))
-  #   masd = apply(absDev, 2L, max)
-  #   high_crit = quantile(masd, prob = quantiles[2], type = 8)
-  #   low_crit = quantile(masd, prob = quantiles[1], type = 8)
-  # }
+
 
 
   names(Single_preds) = paste(estimate," ",list_name,sep = "")
   names(Single_highCI) = paste("HighCI ",estimate," " ,list_name,sep = "")
-  names(Singel_lowCI) = paste("LowCI ",estimate," ",list_name,sep = "")
+  names(Single_lowCI) = paste("LowCI ",estimate," ",list_name,sep = "")
 
 
   if(boot == TRUE | boot == "MBB"){
@@ -328,8 +469,8 @@ CTVEM_single <-
     return(returnmatrix)
   }else{
     attributes = list("Outcome variables" = outcome, "Estimate type" = estimate, "If standardize data" = standardized, "method" = method, "gamma" = gamma, "k" = k, "ktrend" = ktrend  )
-    if(output_type == "CI" | output_type == "SCI"){
-      return(list("est" = Single_preds, "highCI" = Single_highCI, "lowCI" = Singel_lowCI, "attributes" = attributes))
+    if(output_type == "CI" | output_type == "SCI" | output_type == "LLCI"){
+      return(list("est" = Single_preds, "highCI" = Single_highCI, "lowCI" = Single_lowCI, "attributes" = attributes))
     }else{
       return(list("est" = Single_preds, "attributes" = attributes))
     }
