@@ -67,7 +67,8 @@ CTVEM <- function(data = NULL,
                   ncores = NULL,
                   ctype = "PSOCK",
                   weighting = FALSE,
-                  MBB_block = "non-Fixed"
+                  MBB_block = "non-Fixed",
+                  ...
 
 ) {
 
@@ -99,7 +100,8 @@ CTVEM <- function(data = NULL,
       k = k,
       #datamanipu = datamanipu,
       ktrend = ktrend,
-      weighting = weighting
+      weighting = weighting,
+      ...
     )
   }else if(boot == TRUE | boot  == "MBB" ){
     Result = CTVEM_boot(
@@ -121,7 +123,8 @@ CTVEM <- function(data = NULL,
       k = k,
       ktrend = ktrend,
       ctype = ctype,
-      MBB_block = MBB_block
+      MBB_block = MBB_block,
+      ...
     )
   }
 

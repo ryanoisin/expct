@@ -110,7 +110,7 @@ CTVEM_single <-
     }
     # browser()
     for (i in 1:nrow(varnames_mat)) {
-      #i = 2
+      #i = 1
       input_list = as.list(varnames_mat[i,]) # Get the input list, for the marginal case. There will always be only 2 variables
       differentialtimevaryingpredictors = varnames_mat[i,1] # Take the first variable as predictor
       outcome_mcr = varnames_mat[i,2] # Take the second variable as predictor
@@ -210,11 +210,15 @@ CTVEM_single <-
     }
 
     if(output_type == "LLCI"){ # Compute the se of correlation based on the large_lag method
-      Single_preds_all = vector("list",length = length(varnames)) # compute each single auto correlation effects
-      names(Single_preds_all) = varnames
+      Single_preds_all = vector("list",length = length(varnames)*length(varnames)) # compute each single auto correlation effects
+      Single_preds_all_names = vector(length = length(varnames)*length(varnames))
+      nn = 1
+      lag_len = floor(max(Tpred))
+      lag_zero = lag_len + 1
       for (ii in c(1:length(varnames))) {
+        for (jj in c(1:length(varnames))){
         differentialtimevaryingpredictors = varnames[ii] # Take the first variable as predictor
-        outcome_mcr = varnames[ii] # Take the second variable as predictor
+        outcome_mcr = varnames[jj] # Take the second variable as predictor
         datamanipulationout = datamanipulation(
           differentialtimevaryingpredictors = differentialtimevaryingpredictors,
           outcome = outcome_mcr,
@@ -249,33 +253,65 @@ CTVEM_single <-
         colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
         # get predictions from model
         predictions_max = predict(model, pdat2, type = "terms", se = "TRUE")
-        Single_preds_all[[ii]] = predictions_max$fit[,1]
+        Single_preds_all[[nn]] = predictions_max$fit[,1]
+        Single_preds_all_names[nn] = paste(varnames[ii],"lagon",varnames[jj],sep = "")
+        nn = nn + 1
       }
+}
+      names(Single_preds_all) = Single_preds_all_names
       n = nrow(data)
       for (iii in c(1:nrow(varnames_mat))) {
-      if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
-        sd_acf = c()
-        for(l in Tpred){
-          sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[unique(varnames_mat[iii,])]][1:floor(l)]^2))) ) # Compute the large_lag_standard error
-        }
-        Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
-        Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
-      }else{
-        data_1_name = unique(varnames_mat[iii,])[1]
-        data_2_name = unique(varnames_mat[iii,])[2]
-        sub_data_1 = data[,data_1_name]
-        sub_data_2 = data[,data_2_name]
-        std_1 = sd(sub_data_1)
-        std_2 = sd(sub_data_2)
-        sd_ccf = c()
-        for (l in Tpred){
-          floor_l = floor(l)
-          sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
+        if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
+          sd_acf = c()
+          Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
+          for(l in Tpred){
+            sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[Preds_names]][2:floor(l)]^2))) ) # Compute the large_lag_standard error
+          }
+          Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
+          Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
+        }else{ # compute CI of cross correlation effects
+          c1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
+          c2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,1],sep = "")
+          a1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,1],sep = "")
+          a2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,2],sep = "")
+
+          ccf_ij_twoway = c(rev(Single_preds_all[[c2Preds_names]][-1]),Single_preds_all[[c1Preds_names]])
+          #ccf_ji_twoway = rev(ccf_ij_twoway)
+          acf_i = Single_preds_all[[a1Preds_names]][-1]
+          acf_j = Single_preds_all[[a2Preds_names]][-1]
+          acf_i_two_way = c(rev(acf_i),1,acf_i)
+          acf_j_two_way = c(rev(acf_j),1,acf_j)
+          sd_ccf = c()
+          for (l in Tpred){
+            floor_l = floor(l)
+            lag_loc = lag_zero+floor_l
+            corr_ij_k_add_v = ccf_ij_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
+            corr_ij_k_minus_v = ccf_ij_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
+            #corr_ji_k_add_v = ccf_ji_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
+            #corr_ji_k_minus_v = ccf_ji_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
+            #corr_ii_k_add_v = acf_i_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
+            corr_jj_k_add_v = acf_j_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
+            #corr_ii_k_add_v[is.na(corr_ii_k_add_v)] = 0
+            corr_jj_k_add_v[is.na(corr_jj_k_add_v)] = 0
+            corr_ij_k_add_v[is.na(corr_ij_k_add_v)] = 0
+            corr_ij_k_minus_v[is.na(corr_ij_k_minus_v)] = 0
+            #corr_ji_k_add_v[is.na(corr_ji_k_add_v)] = 0
+            #corr_ji_k_minus_v[is.na(corr_ji_k_minus_v)] = 0
+            #sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
+            sd_ccf = c(sd_ccf, sqrt((n-floor_l)^(-1)*(
+              sum(acf_i_two_way*acf_j_two_way)
+              + sum(corr_ij_k_add_v*corr_ij_k_minus_v)
+              +  ccf_ij_twoway[lag_loc]^2*(sum(0.5*acf_i_two_way^2)+sum(0.5*acf_j_two_way^2) + sum(ccf_ij_twoway^2))
+              -  2*ccf_ij_twoway[lag_loc]*(sum(acf_i_two_way*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)*corr_jj_k_add_v))
+            )))
+
+
+          }
+
+          Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
+          Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
         }
 
-        Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
-        Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
-      }
       }
     }
 
@@ -375,9 +411,10 @@ CTVEM_single <-
       }else{
         varnames_mat <- as.matrix(expand.grid(varnames, outcome))
       }
+      pp = length(varnames)
+      Single_preds_all = vector("list",length = pp*pp) # record each single auto and cross correlation effects
 
-      Single_preds_all = vector("list",length = length(varnames)) # compute each single auto correlation effects
-      names(Single_preds_all) = varnames
+      #names(Single_preds_all) = varnames
       differentialtimevaryingpredictors = varnames
       datamanipulationout = datamanipulation(
         differentialtimevaryingpredictors = differentialtimevaryingpredictors,
@@ -415,31 +452,66 @@ CTVEM_single <-
       # get predictions from model
       predictions = predict(model, pdat2, type = "terms", se = "TRUE")
 
-      # Store the partial auto correlation effects of all variables
-      for(i in c(1:length(varnames))){
-        Single_preds_all[[i]] = predictions$fit[,paste("s(timediff):",varnames[i],"lagon",varnames[i],sep = "")]
+      # Store all partial auto and cross correlation
+      nn = 1
+      Single_preds_all_names = vector(length = pp*pp)
+      lag_len = floor(max(Tpred))
+      lag_zero = lag_len + 1
+      for(i in c(1:pp)){
+        for(j in c(1:pp)){
+        Single_preds_all[[nn]] = predictions$fit[,paste("s(timediff):",varnames[i],"lagon",varnames[j],sep = "")]
+        Single_preds_all_names[nn] = paste(varnames[i],"lagon",varnames[j],sep = "")
+        nn = nn + 1
+        }
       }
-
+      names(Single_preds_all) = Single_preds_all_names
       n = nrow(data)
       for (iii in c(1:nrow(varnames_mat))) {
         if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
           sd_acf = c()
+          Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
           for(l in Tpred){
-            sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[unique(varnames_mat[iii,])]][1:floor(l)]^2))) ) # Compute the large_lag_standard error
+            sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[Preds_names]][2:floor(l)]^2))) ) # Compute the large_lag_standard error
           }
           Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
           Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
-        }else{
-          data_1_name = unique(varnames_mat[iii,])[1]
-          data_2_name = unique(varnames_mat[iii,])[2]
-          sub_data_1 = data[,data_1_name]
-          sub_data_2 = data[,data_2_name]
-          std_1 = sd(sub_data_1)
-          std_2 = sd(sub_data_2)
+        }else{ # compute CI of cross correlation effects
+          c1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
+          c2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,1],sep = "")
+          a1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,1],sep = "")
+          a2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,2],sep = "")
+
+          ccf_ij_twoway = c(rev(Single_preds_all[[c2Preds_names]][-1]),Single_preds_all[[c1Preds_names]])
+          #ccf_ji_twoway = rev(ccf_ij_twoway)
+          acf_i = Single_preds_all[[a1Preds_names]][-1]
+          acf_j = Single_preds_all[[a2Preds_names]][-1]
+          acf_i_two_way = c(rev(acf_i),1,acf_i)
+          acf_j_two_way = c(rev(acf_j),1,acf_j)
           sd_ccf = c()
           for (l in Tpred){
             floor_l = floor(l)
-            sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
+            lag_loc = lag_zero+floor_l
+            corr_ij_k_add_v = ccf_ij_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
+            corr_ij_k_minus_v = ccf_ij_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
+            #corr_ji_k_add_v = ccf_ji_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
+            #corr_ji_k_minus_v = ccf_ji_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
+            #corr_ii_k_add_v = acf_i_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
+            corr_jj_k_add_v = acf_j_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
+            #corr_ii_k_add_v[is.na(corr_ii_k_add_v)] = 0
+            corr_jj_k_add_v[is.na(corr_jj_k_add_v)] = 0
+            corr_ij_k_add_v[is.na(corr_ij_k_add_v)] = 0
+            corr_ij_k_minus_v[is.na(corr_ij_k_minus_v)] = 0
+            #corr_ji_k_add_v[is.na(corr_ji_k_add_v)] = 0
+            #corr_ji_k_minus_v[is.na(corr_ji_k_minus_v)] = 0
+            #sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
+            sd_ccf = c(sd_ccf, sqrt((n-floor_l)^(-1)*(
+              sum(acf_i_two_way*acf_j_two_way)
+              + sum(corr_ij_k_add_v*corr_ij_k_minus_v)
+              +  ccf_ij_twoway[lag_loc]^2*(sum(0.5*acf_i_two_way^2)+sum(0.5*acf_j_two_way^2) + sum(ccf_ij_twoway^2))
+              -  2*ccf_ij_twoway[lag_loc]*(sum(acf_i_two_way*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)*corr_jj_k_add_v))
+            )))
+
+
           }
 
           Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
@@ -470,15 +542,18 @@ CTVEM_single <-
   }else{
     attributes = list("Outcome variables" = outcome, "Estimate type" = estimate, "If standardize data" = standardized, "method" = method, "gamma" = gamma, "k" = k, "ktrend" = ktrend  )
     if(output_type == "CI" | output_type == "SCI" | output_type == "LLCI"){
-      return(list("est" = Single_preds, "highCI" = Single_highCI, "lowCI" = Single_lowCI, "attributes" = attributes))
+      return(list("est" = Single_preds, "highCI" = Single_highCI, "lowCI" = Single_lowCI,"laglongreducedummy" = laglongreducedummy, "attributes" = attributes))
     }else{
-      return(list("est" = Single_preds, "attributes" = attributes))
+      return(list("est" = Single_preds, "laglongreducedummy" = laglongreducedummy, "attributes" = attributes))
     }
 
   }
 
 }
 
+
+
+#Compute_LLE = function(CTVEM_pre = NULL, varnames_mat = NULL, Single_preds = NULL, Single_highCI    )
 
 
 
