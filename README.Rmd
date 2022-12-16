@@ -2,7 +2,9 @@
 title: "expct"
 author: "Oisin Ryan"
 date: "2022-12-15"
-output: github_document
+output: 
+  md_document:
+    variant: gfm
 ---
 
 # expct
@@ -48,7 +50,7 @@ The output of this functions is a list which contains below elements:
 Load data:
 
 ```{r}
-# load("data/simdata.rda")
+load("data/simdata.rda")
 library(CTVEM)
 head(simdata)
 
