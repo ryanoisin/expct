@@ -30,7 +30,6 @@
 #' @param quantiles The quantiles to build bootstrapping CI, the default value is c(low_quantile, high_quantile) = c(.025, 0.975)
 #' @param pivot Indicate the pivot of the bootstrapping CI is the mean of bootstrapping point estimations or the median of bootstrapping point estimations. The default value is ''Mean''
 #' @param ncores How many cores you want to use. If it is null, ncores = detectCores()/2
-#' @param datamanipu (can delete later)Determins which data manipulation method will be used. "DT" means the old one; Otherwise, apply the new one (for the moment, works for only 1 person case)
 #' @return The output of this function is: The point estimation of all specified marginal/partial effects (contained in a list).  If SE is true, all corresponding High-CIs and Low-CIs will also be returned (contained in a list).
 #' @import mgcv
 #' @import plyr
