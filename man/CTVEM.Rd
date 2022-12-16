@@ -24,7 +24,8 @@ CTVEM(
   quantiles = c(0.025, 0.975),
   pivot = "Mean",
   ncores = NULL,
-  ctype = "PSOCK"
+  ctype = "PSOCK",
+  weighting = FALSE
 )
 }
 \arguments{
@@ -44,7 +45,7 @@ CTVEM(
 
 \item{boot}{Indicate if we perform bootstrapping estimation or not. If boot == True, we perfomr bootstrapping estimation. The default value is False}
 
-\item{output_type}{Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. The default value is "CI"}
+\item{output_type}{Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. If output_type =="SCI", the Simultaneous CIs will be returned. The default value is "CI"}
 
 \item{standardized}{This specifies whether all of the variables (aside from Time) should be standardized. Options are TRUE, FALSE, and "center". TRUE means within-person standardize each variable (aka get the person-centered z-scores), FALSE means use the raw data, "center" means to only within-person mean-center the variables. Default = TRUE. FALSE is not recommended unless you have done these transformations yourself (OPTIONAL)}
 

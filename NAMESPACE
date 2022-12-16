@@ -2,7 +2,6 @@
 
 export(CTVEM)
 export(CTest)
-export(datamanipulation_old)
 import(Rcpp)
 import(foreach)
 import(iterators)

@@ -20,7 +20,8 @@ CTVEM_single(
   k = 10,
   ktrend = 3,
   quantiles = c(0.025, 0.975),
-  predictionsend = NULL
+  predictionsend = NULL,
+  weighting = FALSE
 )
 }
 \arguments{
@@ -40,7 +41,7 @@ CTVEM_single(
 
 \item{boot}{Indicate if we perform bootstrapping estimation or not. If boot == True, we perfomr bootstrapping estimation. The default value is False}
 
-\item{output_type}{Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. The default value is "CI"}
+\item{output_type}{Indicate which output form will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. If output_type =="SCI", the Simultaneous CIs will be returned. The default value is "CI"}
 
 \item{standardized}{This specifies whether all of the variables (aside from Time) should be standardized. Options are TRUE, FALSE, and "center". TRUE means within-person standardize each variable (aka get the person-centered z-scores), FALSE means use the raw data, "center" means to only within-person mean-center the variables. Default = TRUE. FALSE is not recommended unless you have done these transformations yourself (OPTIONAL)}
 
@@ -53,6 +54,8 @@ CTVEM_single(
 \item{ktrend}{The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)}
 
 \item{quantiles}{The quantiles to build bootstrapping CI, the default value is c(low_quantile, high_quantile) = c(.025, 0.975)}
+
+\item{weighting}{Test option. Calculate weights for stacked data vector?}
 }
 \description{
 This is the CTVEM function which serves for performing bootstrapping estimation. The output of this function is the single estimation of the bootstrapping process, i.e., randomly select data rows from the original dataset, then do estimation.

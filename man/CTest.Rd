@@ -15,7 +15,8 @@ CTest(
   ktrend = 3,
   debug = debug,
   lengthcovariates = lengthcovariates,
-  plot_show = FALSE
+  plot_show = FALSE,
+  weights = NULL
 )
 }
 \arguments{
@@ -40,6 +41,8 @@ CTest(
 \item{lengthcovariates}{the number of covariates (+2)}
 
 \item{plot_show}{Controls if show the plot}
+
+\item{weights}{optional vector of weights to be passed to gam/bam}
 
 \item{predictionstart}{The differential time value to start with, default is NULL, and the lowest time difference in the time series will be used (use lower value if you're first value if you're interested in a smaller interval prediction) e.g. predictionstart = 1. If this is not specified and using a continuous time model, make sure to set blockdata = TRUE so that it will be automatically chosen. (OPTIONAL)}
 

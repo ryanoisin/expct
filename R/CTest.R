@@ -14,6 +14,7 @@
 #' @param debug This will print more useless information as it goes along. Only useful for troubleshooting problems. (OPTIONAL, UNCOMMONLY SPECIFIED)
 #' @param lengthcovariates the number of covariates (+2)
 #' @param plot_show Controls if show the plot
+#' @param weights optional vector of weights to be passed to gam/bam
 #' @return The output of this function is: The estimated model
 #' @export
 #'
@@ -30,7 +31,8 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
                  ktrend = 3,
                  debug = debug,
                  lengthcovariates = lengthcovariates,
-                 plot_show = FALSE) {
+                 plot_show = FALSE,
+                 weights = NULL) {  #arguments to be fed to mgcv::bam or mgcv::gam
   #library(mgcv)
   #MODEL SPECIFICATION - MULTIVARIATE OUTCOME
   controlvariables = NULL
@@ -58,7 +60,7 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
     allpredictorvariables = paste(differentialtermlist, controlvariablelist, sep = " + ")
     model <- as.formula(paste("outcome~", allpredictorvariables, "+s(time,k=", ktrend, ")"))
   }
-
+# browser()
   #print(paste("Varying-coefficient model = ",paste(model)))
   #print(model)
   #NOW RUN THE USER SPECIFIED MODEL - MULTIVARIATE
@@ -67,7 +69,8 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
                     gam(model,
                         data = laglongreducedummy,
                         na.action = na.omit,
-                        gamma = gamma),
+                        gamma = gamma,
+                        weights = weights),
                   silent = TRUE)
     if (try(summary(trytest)[2], silent = TRUE)
         == "try-error") {
@@ -81,7 +84,8 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
                       na.action = na.omit,
                       gamma = gamma,
                       discrete = TRUE,
-                      method = "fREML"
+                      method = "fREML",
+                      weights = weights
                     ),
                   silent = TRUE)
     if (try(summary(trytest)[2], silent = TRUE)
