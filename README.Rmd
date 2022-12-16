@@ -23,7 +23,7 @@ This repository contains an `R` package used by ZZZ (in preperation0) to qqq
 ## Installation
 The current version of this package can be installed directly from github using
 ```{r,  eval = F}
-devtools::install_github("ryanoisin/CTVEM")
+devtools::install_github("ryanoisin/expct")
 ```
 
 ## Usage
@@ -31,7 +31,7 @@ To deploy this package, a longitudinal dataset is taken as the input. The raw da
 
 More specifically, the main function of this package is `CTVEM`. Some important input options of this function are:
 
-  - a) data: Specify the longitudinal dataset which contains Time (measurements time) , ID and covariates columns.
+  - a) dataset: Specify the longitudinal dataset which contains Time (measurements time) , ID and covariates columns.
   - b) quantiles: The quantiles to build CI, the default value is c(low_quantile, high_quantile) = c(.025, 0.975).
   - c) Tpred: A vector which indicates that interested time points in which we want to estimate correlations, e.g. regularly spaced seq(0,30,1) and iregularly spaced c(1,5,6,9,15).
   - d) output_type: Indicate which output format will be returned. If output_type == "CI", point estimations and corresponding CIs will be returned. If output_type =="PE", only ponit estimation will be returned. If output_type =="SCI", the Simultaneous CIs, which is based on [Link](https://fromthebottomoftheheap.net/2016/12/15/simultaneous-interval-revisited/) will be returned. If output_type =="LLCI", the CIs with large-lag errors will be returned. This type of CIs is based on the [Book](https://books.google.com/books?hl=en&lr=&id=rNt5CgAAQBAJ&oi=fnd&pg=PR7&dq=Time+series+forecasting+and+control&ots=DK80uNo2Wy&sig=qqqwadWjU9h-ZeP9a-lXxpVdb_Q#v=onepage&q=Time%20series%20forecasting%20and%20control&f=false) `Time series analysis: forecasting and control`. The default value is "CI".
@@ -50,7 +50,7 @@ The output of this functions is a list which contains below elements:
 Load data:
 
 ```{r}
-load("data/simdata.rda")
+#load("data/simdata.rda")
 library(CTVEM)
 head(simdata)
 
@@ -61,7 +61,7 @@ Peform analyses with `CTVEM`:
 ```{r}
 Tpred = seq(1,30,1)
 
-est <- CTVEM(
+est <- expct(
   data = simdata,
   Time = "time",
   outcome = c("Y1","Y2"),

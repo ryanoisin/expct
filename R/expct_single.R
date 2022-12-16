@@ -1,7 +1,7 @@
 #' Continuous Time-Varying Effect model for a single-time bootstrapping estimation.
 #'
 #' This is the expct function which serves for performing bootstrapping estimation. The output of this function is the single estimation of the bootstrapping process, i.e., randomly select data rows from the original dataset, then do estimation.
-#' @param datset Specify the data frame that contains the interested data, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
+#' @param dataset Specify the data frame that contains the interested data, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
 #' @param Time The name of the Time column in the data E.G. Time = "Time" (must be specified).
 #' @param outcome This is the outcome variables. Specified as outcome="outcomevariablename" for a single variable or outcome=c("outcomevariablename1","outcomevariablename2"). If it is NULL, it will consider each variables as outcome once.
 #' @param ID The name of the ID column in the data E.G. ID = "ID"
@@ -20,7 +20,7 @@
 
 
 expct_single <-
-  function(datset = NULL,
+  function(dataset = NULL,
            Time = "time",
            outcome = NULL,
            ID = "id",
@@ -49,19 +49,19 @@ expct_single <-
   if(is.null(predictionsend)) predictionsend <- max(Tpred)*1.1
 
   # Check if the data includes the colnames
-  if (is.null(colnames(datset))){
+  if (is.null(colnames(dataset))){
     stop("ERROR: Please include colnames for your dataset")
   }
 
 
   # Get the names of variables
-  colnames_data = colnames(datset)
+  colnames_data = colnames(dataset)
   varnames = colnames_data[-c(which(colnames_data == ID), which(colnames_data == Time))]
-  if (sum(is.na(unique(datset[, ID]))) > 0) {
+  if (sum(is.na(unique(dataset[, ID]))) > 0) {
     # CHECK TO SEE IF THE THERE ARE ANY MISSING ID Variables #
     stop("ERROR: At least one ID is missing. Missing data is not allowed in the ID column. Replace and re-run")
   }
-  numberofpeople <- as.numeric(length(unique(datset[, ID]))) #NUMBER OF PEOPLE = NUMBER OF UNIQUE IDs in DATAFRAME
+  numberofpeople <- as.numeric(length(unique(dataset[, ID]))) #NUMBER OF PEOPLE = NUMBER OF UNIQUE IDs in DATAFRAME
 
 
 
@@ -113,7 +113,7 @@ expct_single <-
         datamanipulationout = datamanipulation(
           differentialtimevaryingpredictors = differentialtimevaryingpredictors,
           outcome = outcome_mcr,
-          datset = datset,
+          dataset = dataset,
           ID = ID,
           Time = Time,
           standardized = standardized,
@@ -216,7 +216,7 @@ expct_single <-
         datamanipulationout = datamanipulation(
           differentialtimevaryingpredictors = differentialtimevaryingpredictors,
           outcome = outcome_mcr,
-          datset = datset,
+          dataset = dataset,
           ID = ID,
           Time = Time,
           standardized = standardized,
@@ -253,7 +253,7 @@ expct_single <-
       }
 }
       names(Single_preds_all) = Single_preds_all_names
-      n = nrow(datset)
+      n = nrow(dataset)
       for (iii in c(1:nrow(varnames_mat))) {
         if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
           sd_acf = c()
@@ -326,7 +326,7 @@ expct_single <-
       datamanipulationout = datamanipulation(
         differentialtimevaryingpredictors = differentialtimevaryingpredictors,
         outcome = outcome_pcr,
-        datset = datset,
+        dataset = dataset,
         ID = ID,
         Time = Time,
         standardized = standardized,
@@ -413,7 +413,7 @@ expct_single <-
       datamanipulationout = datamanipulation(
         differentialtimevaryingpredictors = differentialtimevaryingpredictors,
         outcome = varnames,
-        datset = datset,
+        dataset = dataset,
         ID = ID,
         Time = Time,
         standardized = standardized,
@@ -459,7 +459,7 @@ expct_single <-
         }
       }
       names(Single_preds_all) = Single_preds_all_names
-      n = nrow(datset)
+      n = nrow(dataset)
       for (iii in c(1:nrow(varnames_mat))) {
         if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
           sd_acf = c()

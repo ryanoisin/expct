@@ -11,7 +11,7 @@
 #' Continuous Time-Varying Effect model (expct)
 #'
 #' This is the PRIMARY expct function which works for providing some lag information about continuous data.
-#' @param data Specify the data frame that contains the interested variables, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
+#' @param dataset Specify the data frame that contains the interested variables, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
 #' @param Time The name of the Time column in the data E.G. Time = "Time" (must be specified).
 #' @param outcome This is the outcome variables. Specified as outcome="outcomevariablename" for a single variable or outcome=c("outcomevariablename1","outcomevariablename2"). If it is NULL, it will consider each variables as outcome once.
 #' @param ID The name of the ID column in the data E.G. ID = "ID"
