@@ -1,8 +1,8 @@
 
 #' Continuous Time-Varying Effect model for a bootstrapping estimation.
 #'
-#' This is the CTVEM function which performs bootstrapping estimation. The output of this function is the point estimations, high and low cooresponding CIs.
-#' @param data Specify the data frame that contains the interested data, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
+#' This is the expct function which performs bootstrapping estimation. The output of this function is the point estimations, high and low cooresponding CIs.
+#' @param dataset Specify the data frame that contains the interested data, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
 #' @param Time The name of the Time variable. E.G. Time = "Time" (must be specified).
 #' @param outcome This is the outcome variables. Specified as outcome="outcomevariablename" for a single variable or outcome=c("outcomevariablename1","outcomevariablename2"). If it is NULL, it will consider each variables as outcome once.
 #' @param ID The name of the ID column in the data E.G. ID = "ID"
@@ -22,8 +22,8 @@
 #' @return  a) point estimates, b) highCI, c) lowCI, but now based on the bootstrap_results
 
 
-CTVEM_boot <-
-  function(data = NULL,
+expct_boot <-
+  function(dataset = NULL,
            Time = "Time",
            outcome = NULL,
            ID = "ID",
@@ -45,13 +45,13 @@ CTVEM_boot <-
 
   if(boot == TRUE){
     datalist <- lapply(1:iterations, function(s){
-      Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
-      data_select = data[Select,]
+      Select = sort(sample(seq(1,nrow(dataset),1),size = nrow(dataset),replace = T),decreasing = F)
+      data_select = dataset[Select,]
       data.frame(data_select)
     })
     }else if(boot == "MBB"){ # Overlapping-moving block bootstrap
     datalist <- lapply(1:iterations, function(s){
-      n = nrow(data)
+      n = nrow(dataset)
       if(MBB_block == "Fixed"){
       l = max(Tpred) # Fixed the block length
       }else{
@@ -59,10 +59,10 @@ CTVEM_boot <-
       }
       num_p = n / l  # Find the number of block we need to recover the origianl length of the data
       int_num_p = ceiling(num_p) # Take the ceiling number of num_p. Since num_p may not be an integer
-      select_order = sample(seq(1, nrow(data) - l + 1, 1),size = int_num_p,replace = T) # select the starting point of different block, 1,2,...,n-l+1
-      data_select = data[1,]    # combine all selected block
+      select_order = sample(seq(1, nrow(dataset) - l + 1, 1),size = int_num_p,replace = T) # select the starting point of different block, 1,2,...,n-l+1
+      data_select = dataset[1,]    # combine all selected block
       for (i in select_order) {
-        data_select = rbind(data_select, data[seq(i,i+l-1,1),])
+        data_select = rbind(data_select, dataset[seq(i,i+l-1,1),])
       }
       data_select = data_select[-1,]
       data_select =  data_select[1:n, ] # trim the bootstrap data to make the length is equal to the true data
@@ -80,9 +80,9 @@ CTVEM_boot <-
   cl <- parallel::makeCluster(ncores, type = ctype)
 
   if(ctype == "PSOCK"){
-  export_vars <- c("data", "Time", "ID", "estimate", "Tpred", "plot_show", "outcome",
+  export_vars <- c("dataset", "Time", "ID", "estimate", "Tpred", "plot_show", "outcome",
                    "boot", "standardized", "method", "gamma", "k", "ktrend",
-                   "CTVEM_single","datamanipulation","CTest", "datalist")
+                   "expct_single","datamanipulation","CTest", "datalist")
   parallel::clusterExport(cl = cl, varlist = export_vars, envir = environment())
 }
   # pb = progress_bar$new(
@@ -104,8 +104,8 @@ CTVEM_boot <-
   bootstrap_results <-  pbapply::pblapply(cl = cl, X = datalist, FUN = function(i) {
      #data_select <- datalist[[i]]
 
-    CTVEM_single(
-      data = i,
+    expct_single(
+      dataset = i,
       Time = Time,
       ID = ID,
       estimate = estimate,
@@ -127,12 +127,12 @@ CTVEM_boot <-
   # clean up cluster
   stopCluster(cl)
 
-  # bootstrap_results = foreach(iii=1:iterations, .combine="rbind",.options.snow = opts,.export=c("CTVEM_single","datamanipulation","CTest"),.packages = c("plyr","zoo","reshape2","mgcv","matrixStats")) %dopar%{
+  # bootstrap_results = foreach(iii=1:iterations, .combine="rbind",.options.snow = opts,.export=c("expct_single","datamanipulation","CTest"),.packages = c("plyr","zoo","reshape2","mgcv","matrixStats")) %dopar%{
 
   #   Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
   #   data_select = data[Select,]
   #   data_select = data.frame(data_select)
-  #   CTVEM_single(
+  #   expct_single(
   #     data = data_select,
   #     Time = Time,
   #     ID = ID,
@@ -151,7 +151,7 @@ CTVEM_boot <-
 
   # Analyze bootstrapping results
   # Get how many time-varying effects we have
-  colnames_data = colnames(data)
+  colnames_data = colnames(dataset)
   varnames = colnames_data[-c(which(colnames_data == ID), which(colnames_data == Time))]
   if(is.null(outcome)){
     Result_length = length(varnames)*length(varnames)

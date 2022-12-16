@@ -1,18 +1,18 @@
 datamanipulation = function(differentialtimevaryingpredictors = NULL,
                             outcome = NULL,
-                            data = NULL,
+                            dataset = NULL,
                             ID = "ID",
                             Time = "time",
                             standardized = FALSE,
                             predictionsend = NULL) {
 
   # Find the time diff and the number of time points for each subject
-  id_count = numeric(length(unique(data[,ID])))
-  id_vec = unique(data[,ID])
+  id_count = numeric(length(unique(dataset[,ID])))
+  id_vec = unique(dataset[,ID])
   diffs = id_count
   numerpoints = id_count
   for (i in c(1:length(id_vec))){
-    subset = data[which(data[,ID] == id_vec[i]),]
+    subset = dataset[which(dataset[,ID] == id_vec[i]),]
     diffs[i] = diff(range(subset[,Time]))
     numerpoints[i] = nrow(subset)
   }
@@ -36,7 +36,7 @@ datamanipulation = function(differentialtimevaryingpredictors = NULL,
 
     for (ii in c(1:length(id_vec))){ # Stack data by ID
       for (i in c(1:(numerpoints[ii]-1))){ # Stack data by number of time points
-    data_sub = data[which(data[,ID] == id_vec[ii]),]
+    data_sub = dataset[which(dataset[,ID] == id_vec[ii]),]
     time_diff = diff(data_sub[,Time], lag = i)
     if(min(time_diff) <= predictionsend){
       for (j in 1:length(outcome)) {
@@ -68,7 +68,7 @@ datamanipulation = function(differentialtimevaryingpredictors = NULL,
               "lengthcovariates" = lengthcovariates ))
 }
 
- test_all = datamanipulation(differentialtimevaryingpredictors = c("Y1","Y2"),outcome = c("Y1","Y2"),data = data, ID = "id", Time = "time",predictionsend = 20)
+ # test_all = datamanipulation(differentialtimevaryingpredictors = c("Y1","Y2"),outcome = c("Y1","Y2"),dataset = dataset, ID = "id", Time = "time",predictionsend = 20)
 
 
 # data_test = rbind(data[1:3,], data[81:84,])

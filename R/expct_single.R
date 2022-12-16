@@ -1,7 +1,7 @@
 #' Continuous Time-Varying Effect model for a single-time bootstrapping estimation.
 #'
-#' This is the CTVEM function which serves for performing bootstrapping estimation. The output of this function is the single estimation of the bootstrapping process, i.e., randomly select data rows from the original dataset, then do estimation.
-#' @param data Specify the data frame that contains the interested data, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
+#' This is the expct function which serves for performing bootstrapping estimation. The output of this function is the single estimation of the bootstrapping process, i.e., randomly select data rows from the original dataset, then do estimation.
+#' @param datset Specify the data frame that contains the interested data, Time (measuing time) and ID column. MUST INCLUDE COLNAMES.
 #' @param Time The name of the Time column in the data E.G. Time = "Time" (must be specified).
 #' @param outcome This is the outcome variables. Specified as outcome="outcomevariablename" for a single variable or outcome=c("outcomevariablename1","outcomevariablename2"). If it is NULL, it will consider each variables as outcome once.
 #' @param ID The name of the ID column in the data E.G. ID = "ID"
@@ -19,8 +19,8 @@
 #' @param weighting Test option. Calculate weights for stacked data vector?
 
 
-CTVEM_single <-
-  function(data = NULL,
+expct_single <-
+  function(datset = NULL,
            Time = "time",
            outcome = NULL,
            ID = "id",
@@ -49,26 +49,20 @@ CTVEM_single <-
   if(is.null(predictionsend)) predictionsend <- max(Tpred)*1.1
 
   # Check if the data includes the colnames
-  if (is.null(colnames(data))){
+  if (is.null(colnames(datset))){
     stop("ERROR: Please include colnames for your dataset")
   }
 
 
   # Get the names of variables
-  colnames_data = colnames(data)
+  colnames_data = colnames(datset)
   varnames = colnames_data[-c(which(colnames_data == ID), which(colnames_data == Time))]
-  if (sum(is.na(unique(data[, ID]))) > 0) {
+  if (sum(is.na(unique(datset[, ID]))) > 0) {
     # CHECK TO SEE IF THE THERE ARE ANY MISSING ID Variables #
     stop("ERROR: At least one ID is missing. Missing data is not allowed in the ID column. Replace and re-run")
   }
-  numberofpeople <- as.numeric(length(unique(data[, ID]))) #NUMBER OF PEOPLE = NUMBER OF UNIQUE IDs in DATAFRAME
+  numberofpeople <- as.numeric(length(unique(datset[, ID]))) #NUMBER OF PEOPLE = NUMBER OF UNIQUE IDs in DATAFRAME
 
-  # # Build randomly choosen data
-  # Select = sort(sample(seq(1,nrow(data),1),size = nrow(data),replace = T),decreasing = F)
-  # data_select = data[Select,]
-  # data_select = data.frame(data_select)
-  #
-  #data[,"Time"]=data[,Time]
 
 
   # Prepare some values
@@ -119,7 +113,7 @@ CTVEM_single <-
         datamanipulationout = datamanipulation(
           differentialtimevaryingpredictors = differentialtimevaryingpredictors,
           outcome = outcome_mcr,
-          data = data,
+          datset = datset,
           ID = ID,
           Time = Time,
           standardized = standardized,
@@ -146,7 +140,7 @@ CTVEM_single <-
         }
 
       # Run the CT estimation
-      cat(paste("Perform the ",i,"/",nrow(varnames_mat), " time " , estimate , " CTVEM estimation",".\n",sep=""))
+      cat(paste("Perform the ",i,"/",nrow(varnames_mat), " time " , estimate , " expct estimation",".\n",sep=""))
 
       #print(head(laglongreducedummy))
       estout = CTest(
@@ -222,7 +216,7 @@ CTVEM_single <-
         datamanipulationout = datamanipulation(
           differentialtimevaryingpredictors = differentialtimevaryingpredictors,
           outcome = outcome_mcr,
-          data = data,
+          datset = datset,
           ID = ID,
           Time = Time,
           standardized = standardized,
@@ -259,7 +253,7 @@ CTVEM_single <-
       }
 }
       names(Single_preds_all) = Single_preds_all_names
-      n = nrow(data)
+      n = nrow(datset)
       for (iii in c(1:nrow(varnames_mat))) {
         if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
           sd_acf = c()
@@ -319,7 +313,7 @@ CTVEM_single <-
 
   # Estimate partial effects
   if(estimate == "partial"){
-    # We can directly apply CTVEM to estimate all partial effects. So we do not need to use expand.grid to separate each effects.
+    # We can directly apply expct to estimate all partial effects. So we do not need to use expand.grid to separate each effects.
     # Do data manipulation
     if(is.null(outcome)){
       outcome_pcr = varnames
@@ -332,7 +326,7 @@ CTVEM_single <-
       datamanipulationout = datamanipulation(
         differentialtimevaryingpredictors = differentialtimevaryingpredictors,
         outcome = outcome_pcr,
-        data = data,
+        datset = datset,
         ID = ID,
         Time = Time,
         standardized = standardized,
@@ -342,7 +336,7 @@ CTVEM_single <-
       namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
       laglongreducedummy = datamanipulationout$laglongreducedummy
     # Run the CT estimation
-    cat(paste("Perform ", estimate , " CTVEM estimation",".\n",sep=""))
+    cat(paste("Perform ", estimate , " expct estimation",".\n",sep=""))
     #print(head(laglongreducedummy))
     estout = CTest(
       differentialtimevaryingpredictors = differentialtimevaryingpredictors,
@@ -419,7 +413,7 @@ CTVEM_single <-
       datamanipulationout = datamanipulation(
         differentialtimevaryingpredictors = differentialtimevaryingpredictors,
         outcome = varnames,
-        data = data,
+        datset = datset,
         ID = ID,
         Time = Time,
         standardized = standardized,
@@ -428,7 +422,7 @@ CTVEM_single <-
       lengthcovariates = datamanipulationout$lengthcovariates
       namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
       laglongreducedummy = datamanipulationout$laglongreducedummy
-      cat(paste("Perform ", estimate , " CTVEM estimation for large lag CI",".\n",sep=""))
+      cat(paste("Perform ", estimate , " expct estimation for large lag CI",".\n",sep=""))
       #print(head(laglongreducedummy))
       estout = CTest(
         differentialtimevaryingpredictors = differentialtimevaryingpredictors,
@@ -465,7 +459,7 @@ CTVEM_single <-
         }
       }
       names(Single_preds_all) = Single_preds_all_names
-      n = nrow(data)
+      n = nrow(datset)
       for (iii in c(1:nrow(varnames_mat))) {
         if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
           sd_acf = c()
@@ -536,7 +530,7 @@ CTVEM_single <-
 
   if(boot == TRUE | boot == "MBB"){
     list_names = names(Single_preds)
-    returnmatrix = matrix(unlist(Single_preds), nrow = length(Single_preds),byrow = T) # Since we are doing bootstrapping estimation, we only need to return point estimation from the single CTVEM
+    returnmatrix = matrix(unlist(Single_preds), nrow = length(Single_preds),byrow = T) # Since we are doing bootstrapping estimation, we only need to return point estimation from the single expct
     rownames(returnmatrix) = list_names
     return(returnmatrix)
   }else{
@@ -553,7 +547,7 @@ CTVEM_single <-
 
 
 
-#Compute_LLE = function(CTVEM_pre = NULL, varnames_mat = NULL, Single_preds = NULL, Single_highCI    )
+#Compute_LLE = function(expct_pre = NULL, varnames_mat = NULL, Single_preds = NULL, Single_highCI    )
 
 
 

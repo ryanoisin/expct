@@ -2,7 +2,7 @@
 % Please edit documentation in R/CTest.R
 \name{CTest}
 \alias{CTest}
-\title{CT estimation of CTVEM}
+\title{CT estimation of expct}
 \usage{
 CTest(
   differentialtimevaryingpredictors = differentialtimevaryingpredictors,
@@ -52,5 +52,5 @@ CTest(
 The output of this function is: The estimated model
 }
 \description{
-PLEASE USE THE CTVEM FUNCTION RATHER THAN THIS UNLESS YOU WOULD LIKE TO SPECIFY THIS MANUALLY.
+PLEASE USE THE expct FUNCTION RATHER THAN THIS UNLESS YOU WOULD LIKE TO SPECIFY THIS MANUALLY.
 }

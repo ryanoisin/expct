@@ -1,6 +1,6 @@
-#' CT estimation of CTVEM
+#' CT estimation of expct
 #'
-#' PLEASE USE THE CTVEM FUNCTION RATHER THAN THIS UNLESS YOU WOULD LIKE TO SPECIFY THIS MANUALLY.
+#' PLEASE USE THE expct FUNCTION RATHER THAN THIS UNLESS YOU WOULD LIKE TO SPECIFY THIS MANUALLY.
 #' @param differentialtimevaryingpredictors The variables that will be a varying-coefficient of differential time (AKA the lags you want to know what times they predict the outcome). This must be specified as a vector using c("variables here"). e.g. c("X","Y") (REQUIRED)
 #' @param outcome This is each of the outcome variables. Specified as outcome="outcomevariablename" for a single variable or outcome=c("outcomevariablename1","outcomevariablename2") (REQUIRED)
 #' @param predictionstart The differential time value to start with, default is NULL, and the lowest time difference in the time series will be used (use lower value if you're first value if you're interested in a smaller interval prediction) e.g. predictionstart = 1. If this is not specified and using a continuous time model, make sure to set blockdata = TRUE so that it will be automatically chosen. (OPTIONAL)
@@ -121,7 +121,7 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
     for(i in 1:length(outcome)){
       for(ii in 1:length(differentialtimevaryingpredictors)){
         graphnumber=graphnumber+1
-        plot(mod,select=graphnumber,ylab=paste("Beta Coefficient of ",differentialtimevaryingpredictors[ii],"lag on ",outcome[i],sep=""),xlab="Time Differences",main="CTVEM Estimation stage")
+        plot(mod,select=graphnumber,ylab=paste("Beta Coefficient of ",differentialtimevaryingpredictors[ii],"lag on ",outcome[i],sep=""),xlab="Time Differences",main="expct Estimation stage")
       }
     }
   }
