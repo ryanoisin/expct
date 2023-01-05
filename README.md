@@ -27,7 +27,7 @@ The current version of this package can be installed directly from
 github using
 
 ``` r
-devtools::install_github("ryanoisin/CTVEM")
+devtools::install_github("ryanoisin/expct")
 ```
 
 ## Usage
@@ -40,7 +40,7 @@ built.
 More specifically, the main function of this package is `CTVEM`. Some
 important input options of this function are:
 
--   1)  data: Specify the longitudinal dataset which contains Time
+-   1)  dataset: Specify the longitudinal dataset which contains Time
         (measurements time) , ID and covariates columns.
 
 -   2)  quantiles: The quantiles to build CI, the default value is
@@ -94,13 +94,23 @@ head(simdata)
     ## [5,]  1 10.060890  1.34938143  1.4604215
     ## [6,]  1 14.870422  0.01682572  3.1393569
 
-Peform analyses with `CTVEM`:
+Perform analyses with `CTVEM`:
+
+``` r
+library(mgcv)
+```
+
+    ## Warning: package 'mgcv' was built under R version 4.2.2
+
+    ## Loading required package: nlme
+
+    ## This is mgcv 1.8-41. For overview type 'help("mgcv-package")'.
 
 ``` r
 Tpred = seq(1,30,1)
 
-est <- CTVEM(
-  data = simdata,
+est <- expct(
+  dataset = simdata,
   Time = "time",
   outcome = c("Y1","Y2"),
   ID = "id",
@@ -112,10 +122,10 @@ est <- CTVEM(
 )
 ```
 
-    ## Perform the 1/4 time marginal CTVEM estimation.
-    ## Perform the 2/4 time marginal CTVEM estimation.
-    ## Perform the 3/4 time marginal CTVEM estimation.
-    ## Perform the 4/4 time marginal CTVEM estimation.
+    ## Perform the 1/4 time marginal expct estimation.
+    ## Perform the 2/4 time marginal expct estimation.
+    ## Perform the 3/4 time marginal expct estimation.
+    ## Perform the 4/4 time marginal expct estimation.
 
 ``` r
 plot(est$est[[1]], type = "b", ylab = "estimated autoregression", xlab = "time diff", main = "Autoregression X1")

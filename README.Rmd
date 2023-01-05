@@ -22,7 +22,7 @@ This repository contains an `R` package used by ZZZ (in preperation0) to qqq
 
 ## Installation
 The current version of this package can be installed directly from github using
-```{r,  eval = F}
+```{r,  eval = T}
 devtools::install_github("ryanoisin/expct")
 ```
 
@@ -51,12 +51,12 @@ Load data:
 
 ```{r}
 load("data/simdata.rda")
-library(CTVEM)
+library(expct)
 head(simdata)
 
 ```
 
-Peform analyses with `CTVEM`:
+Perform analyses with `CTVEM`:
 
 ```{r}
 library(mgcv)
