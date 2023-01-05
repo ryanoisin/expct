@@ -30,6 +30,9 @@ github using
 devtools::install_github("ryanoisin/expct")
 ```
 
+    ## Skipping install of 'expct' from a github remote, the SHA1 (9bc27833) has not changed since last install.
+    ##   Use `force = TRUE` to force installation
+
 ## Usage
 
 To deploy this package, a longitudinal dataset is taken as the input.
@@ -82,7 +85,7 @@ Load data:
 
 ``` r
 load("data/simdata.rda")
-library(CTVEM)
+library(expct)
 head(simdata)
 ```
 
