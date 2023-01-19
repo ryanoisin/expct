@@ -534,7 +534,7 @@ expct_single <-
     rownames(returnmatrix) = list_names
     return(returnmatrix)
   }else{
-    attributes = list("Outcome variables" = outcome, "Estimate type" = estimate, "If standardize data" = standardized, "method" = method, "gamma" = gamma, "k" = k, "ktrend" = ktrend  )
+    attributes = list("Outcome variables" = outcome, "Estimate type" = estimate, "If standardize data" = standardized, "method" = method, "gamma" = gamma, "k" = k, "ktrend" = ktrend, "Tpred" = Tpred  )
     if(output_type == "CI" | output_type == "SCI" | output_type == "LLCI"){
       return(list("est" = Single_preds, "highCI" = Single_highCI, "lowCI" = Single_lowCI,"laglongreducedummy" = laglongreducedummy, "attributes" = attributes))
     }else{
