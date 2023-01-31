@@ -80,7 +80,7 @@ expct_single <-
   if(is.null(outcome)){
     Result_length = length(varnames)*length(varnames)
   }else{ # with specified outcomes. E.g. three variables X1, X2 and X3. Outcome is c("X1","X2"). We only consider 3X2 = 6 marginal/partial effects
-    Result_length = length(outcome)*length(varnames)
+    Result_length = length(outcome)*length(outcome)
   }
 
   # We just need the point estimation for doing bootstrapping estimation
@@ -100,7 +100,7 @@ expct_single <-
     if(is.null(outcome)){
       varnames_mat <- as.matrix(expand.grid(varnames, varnames))
     }else{
-      varnames_mat <- as.matrix(expand.grid(varnames, outcome))
+      varnames_mat <- as.matrix(expand.grid(outcome, outcome))
     }
     # browser()
     for (i in 1:nrow(varnames_mat)) {
@@ -317,11 +317,14 @@ expct_single <-
     # Do data manipulation
     if(is.null(outcome)){
       outcome_pcr = varnames
+      input_list = as.list(varnames)
+      differentialtimevaryingpredictors = varnames
     }else{
       outcome_pcr = outcome
+      input_list = as.list(outcome)
+      differentialtimevaryingpredictors = outcome
     }
-    input_list = as.list(varnames)
-    differentialtimevaryingpredictors = varnames
+
 
       datamanipulationout = datamanipulation(
         differentialtimevaryingpredictors = differentialtimevaryingpredictors,
@@ -403,7 +406,7 @@ expct_single <-
       if(is.null(outcome)){
         varnames_mat <- as.matrix(expand.grid(varnames, varnames))
       }else{
-        varnames_mat <- as.matrix(expand.grid(varnames, outcome))
+        varnames_mat <- as.matrix(expand.grid(outcome, outcome))
       }
       pp = length(varnames)
       Single_preds_all = vector("list",length = pp*pp) # record each single auto and cross correlation effects
