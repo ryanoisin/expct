@@ -45,6 +45,26 @@ expct_single <-
   #library(zoo)
   #library(reshape2)
 
+  if(output_type == "LLCI"){
+    is.wholenumber <-
+      function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
+
+    # check if integers
+    intcheck <- all(sapply(Tpred, is.wholenumber))
+
+    # check if equally spaced
+    diffcheck <- all(diff(Tpred) == 1)
+
+    # if either condition fails then
+    if(!(intcheck & diffcheck)){
+
+    Tpred <- seq(0, round(max(Tpred),0), 1)
+
+    warning("LLCI computation only implemented for equally spaced integer values of Tpred \\
+            Returning results for equally spaced Tpred from 0 to maximum user-specified")
+    }
+  } #end
+
   # here - make predictions end just slightly longer than Tpred max
   if(is.null(predictionsend)) predictionsend <- max(Tpred)*1.1
 
@@ -173,10 +193,24 @@ expct_single <-
        # get predictions from model
        predictions = predict(model, pdat2, type = "terms", se = "TRUE")
        Single_preds[[i]] = as.vector(predictions$fit[,1])
+
+       # Transform the regression prediction to the correlation
+       if(differentialtimevaryingpredictors != outcome_mcr){
+         sd_pre = sd(dataset[,differentialtimevaryingpredictors])
+         sd_out = sd(dataset[,outcome_mcr])
+         Single_preds[[i]] = Single_preds[[i]]* (sd_pre/sd_out)
+       }
       # compute CIs
       if(output_type == "CI"){
       Single_highCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[2], lower.tail = T) * as.vector(predictions$se.fit[, 1])
       Single_lowCI[[i]] = as.vector(predictions$fit[, 1]) + qnorm(quantiles[1], lower.tail = T) *  as.vector(predictions$se.fit[, 1])
+      if(differentialtimevaryingpredictors != outcome_mcr){
+        sd_pre = sd(dataset[,differentialtimevaryingpredictors])
+        sd_out = sd(dataset[,outcome_mcr])
+        Single_highCI[[i]] = Single_highCI[[i]]* (sd_pre/sd_out)
+        Single_lowCI[[i]] = Single_lowCI[[i]]* (sd_pre/sd_out)
+      }
+
       }
 
       if(output_type == "SCI"){
@@ -195,6 +229,12 @@ expct_single <-
         crit = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
         Single_highCI[[i]] = as.vector(predictions$fit[,1]) + crit*predictions_$se.fit
         Single_lowCI[[i]] = as.vector(predictions$fit[,1]) - crit*predictions_$se.fit
+        if(differentialtimevaryingpredictors != outcome_mcr){
+          sd_pre = sd(dataset[,differentialtimevaryingpredictors])
+          sd_out = sd(dataset[,outcome_mcr])
+          Single_highCI[[i]] = Single_highCI[[i]]* (sd_pre/sd_out)
+          Single_lowCI[[i]] = Single_lowCI[[i]]* (sd_pre/sd_out)
+        }
       }
 
        # add "large lag SE" @kejin
@@ -212,7 +252,7 @@ expct_single <-
       for (ii in c(1:length(varnames))) {
         for (jj in c(1:length(varnames))){
         differentialtimevaryingpredictors = varnames[ii] # Take the first variable as predictor
-        outcome_mcr = varnames[jj] # Take the second variable as predictor
+        outcome_mcr = varnames[jj] # Take the second variable as response
         datamanipulationout = datamanipulation(
           differentialtimevaryingpredictors = differentialtimevaryingpredictors,
           outcome = outcome_mcr,
@@ -254,281 +294,357 @@ expct_single <-
 }
       names(Single_preds_all) = Single_preds_all_names
       n = nrow(dataset)
+      # make est matrix which contains need rx ry rxy and lag order
       for (iii in c(1:nrow(varnames_mat))) {
-        if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
-          sd_acf = c()
-          Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
-          for(l in Tpred){
-            sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[Preds_names]][2:floor(l)]^2))) ) # Compute the large_lag_standard error
-          }
-          Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
-          Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
-        }else{ # compute CI of cross correlation effects
-          c1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
+        if(length(unique(varnames_mat[iii,])) == 1){
+          Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "") # get the prediction name
+          acf_x = Single_preds_all[[Preds_names]]
+          acf_x2 = c(rev(acf_x[-1]),1,acf_x[-1])
+          lagx2 = seq(-max(Tpred),max(Tpred),1)
+          ccfmat2 = cbind(acf_x2, lagx2)
+          ests2 = as.data.frame(cbind(acf_x2, acf_x2, ccfmat2))
+          colnames(ests2) = c("rx", "ry", "rxy", "lag")
+
+          # now calculate this over the vector Tpred
+          sdvec = sapply(Tpred, function(k){
+            lag.max = max(Tpred)
+            ivec = seq(-lag.max, lag.max, 1)
+            varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests2, i = s,k)))
+            sqrt(varests)
+          })
+
+          Single_highCI[[iii]] = Single_preds[[iii]] + 1.96*sdvec
+          Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sdvec
+
+        }else{
+          c1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "") # Here location 1 represents the predictor
           c2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,1],sep = "")
           a1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,1],sep = "")
           a2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,2],sep = "")
 
-          ccf_ij_twoway = c(rev(Single_preds_all[[c2Preds_names]][-1]),Single_preds_all[[c1Preds_names]])
-          #ccf_ji_twoway = rev(ccf_ij_twoway)
-          acf_i = Single_preds_all[[a1Preds_names]][-1]
-          acf_j = Single_preds_all[[a2Preds_names]][-1]
-          acf_i_two_way = c(rev(acf_i),1,acf_i)
-          acf_j_two_way = c(rev(acf_j),1,acf_j)
-          sd_ccf = c()
-          for (l in Tpred){
-            floor_l = floor(l)
-            lag_loc = lag_zero+floor_l
-            corr_ij_k_add_v = ccf_ij_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
-            corr_ij_k_minus_v = ccf_ij_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
-            #corr_ji_k_add_v = ccf_ji_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
-            #corr_ji_k_minus_v = ccf_ji_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
-            #corr_ii_k_add_v = acf_i_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
-            corr_jj_k_add_v = acf_j_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
-            #corr_ii_k_add_v[is.na(corr_ii_k_add_v)] = 0
-            corr_jj_k_add_v[is.na(corr_jj_k_add_v)] = 0
-            corr_ij_k_add_v[is.na(corr_ij_k_add_v)] = 0
-            corr_ij_k_minus_v[is.na(corr_ij_k_minus_v)] = 0
-            #corr_ji_k_add_v[is.na(corr_ji_k_add_v)] = 0
-            #corr_ji_k_minus_v[is.na(corr_ji_k_minus_v)] = 0
-            #sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
-            sd_ccf = c(sd_ccf, sqrt((n-floor_l)^(-1)*(
-              sum(acf_i_two_way*acf_j_two_way)
-              + sum(corr_ij_k_add_v*corr_ij_k_minus_v)
-              +  ccf_ij_twoway[lag_loc]^2*(sum(0.5*acf_i_two_way^2)+sum(0.5*acf_j_two_way^2) + sum(ccf_ij_twoway^2))
-              -  2*ccf_ij_twoway[lag_loc]*(sum(acf_i_two_way*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)*corr_jj_k_add_v))
-            )))
+          sigma_pre = sd(dataset[,varnames_mat[iii,1]])
+          sigma_out = sd(dataset[,varnames_mat[iii,2]])
+          cor_pre_out = cor(dataset[,varnames_mat[iii,1]],dataset[,varnames_mat[iii,2]])
 
+          cr_est = Single_preds_all[[c1Preds_names]]
+          ccf_est = cr_est[-1]*(sigma_pre/sigma_out)
 
-          }
+          rcr_est = Single_preds_all[[c2Preds_names]]
+          rccf_est = rev(rcr_est[-1]*(sigma_out / sigma_pre))
+          crossmat = cbind(c(rccf_est, cor_pre_out, ccf_est),seq(-max(Tpred),max(Tpred),1))  # Can Tpred be not an integer;
 
-          Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
-          Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
+          acf_pre = Single_preds_all[[a1Preds_names]]
+          acf_out = Single_preds_all[[a2Preds_names]]
+
+          ests <- as.data.frame(cbind(c(rev(acf_pre[-1]),1,acf_pre[-1]), c(rev(acf_out[-1]),1,acf_out[-1]), crossmat))
+          colnames(ests) <- c("rx", "ry", "rxy", "lag")
+
+          # now calculate this over a vector of k values
+          sdvec <- sapply(Tpred, function(k){
+            lag.max = max(Tpred)
+            ivec <- seq(-lag.max, lag.max, 1)
+            varests <- (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests, i = s,k)))
+            sqrt(varests)
+          })
+
+          Single_highCI[[iii]] = Single_preds[[iii]] + 1.96*sdvec
+          Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sdvec
         }
 
       }
+
+
+
+      #
+      # for (iii in c(1:nrow(varnames_mat))) {
+      #   if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
+      #     sd_acf = c()
+      #     Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
+      #     for(l in Tpred){
+      #       sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[Preds_names]][2:floor(l)]^2))) ) # Compute the large_lag_standard error
+      #     }
+      #     Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
+      #     Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
+      #   }else{ # compute CI of cross correlation effects
+      #     c1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
+      #     c2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,1],sep = "")
+      #     a1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,1],sep = "")
+      #     a2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,2],sep = "")
+      #
+      #     ccf_ij_twoway = c(rev(Single_preds_all[[c2Preds_names]][-1]),Single_preds_all[[c1Preds_names]])
+      #     #ccf_ji_twoway = rev(ccf_ij_twoway)
+      #     acf_i = Single_preds_all[[a1Preds_names]][-1]
+      #     acf_j = Single_preds_all[[a2Preds_names]][-1]
+      #     acf_i_two_way = c(rev(acf_i),1,acf_i)
+      #     acf_j_two_way = c(rev(acf_j),1,acf_j)
+      #     sd_ccf = c()
+      #     for (l in Tpred){
+      #       floor_l = floor(l)
+      #       lag_loc = lag_zero+floor_l
+      #       corr_ij_k_add_v = ccf_ij_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
+      #       corr_ij_k_minus_v = ccf_ij_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
+      #       #corr_ji_k_add_v = ccf_ji_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
+      #       #corr_ji_k_minus_v = ccf_ji_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
+      #       #corr_ii_k_add_v = acf_i_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
+      #       corr_jj_k_add_v = acf_j_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
+      #       #corr_ii_k_add_v[is.na(corr_ii_k_add_v)] = 0
+      #       corr_jj_k_add_v[is.na(corr_jj_k_add_v)] = 0
+      #       corr_ij_k_add_v[is.na(corr_ij_k_add_v)] = 0
+      #       corr_ij_k_minus_v[is.na(corr_ij_k_minus_v)] = 0
+      #       #corr_ji_k_add_v[is.na(corr_ji_k_add_v)] = 0
+      #       #corr_ji_k_minus_v[is.na(corr_ji_k_minus_v)] = 0
+      #       #sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
+      #
+      #
+      #       add_new = (
+      #           sum((acf_i_two_way)*abs(acf_j_two_way))
+      #         + sum(corr_ij_k_add_v*corr_ij_k_minus_v)
+      #         +  ccf_ij_twoway[lag_loc]^2*(sum(0.5*acf_i_two_way^2)+sum(0.5*acf_j_two_way^2) + sum(ccf_ij_twoway^2))
+      #         -  2*ccf_ij_twoway[lag_loc]*(sum(acf_i_two_way*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)*corr_jj_k_add_v))
+      #       )
+      #       # if(add_new<0){
+      #       #   add_new = add_new +
+      #       #   0.5*sum(acf_i_two_way*acf_i_two_way) + 0.5*sum(acf_j_two_way*acf_j_two_way) + 0.5*sum(corr_ij_k_add_v*corr_ij_k_add_v) + 0.5*sum(corr_ij_k_minus_v*corr_ij_k_minus_v)
+      #       #   + 2*ccf_ij_twoway[lag_loc]^2 + sum(acf_i_two_way*acf_i_two_way*corr_ij_k_add_v*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)^2*acf_j_two_way^2)
+      #       # }
+      #       sd_ccf = c(sd_ccf, sqrt((n-floor_l)^(-1)*(
+      #         add_new
+      #       )))
+      #       #print(sd_ccf)
+      #
+      #
+      #     }
+      #
+      #     Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
+      #     Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
+      #   }
+      #
+      # }
     }
 
   }
 
   # Estimate partial effects
   if(estimate == "partial"){
+    warning("partial correlation effects estimation has not been considered so far")
+    break
     # We can directly apply expct to estimate all partial effects. So we do not need to use expand.grid to separate each effects.
     # Do data manipulation
-    if(is.null(outcome)){
-      outcome_pcr = varnames
-      input_list = as.list(varnames)
-      differentialtimevaryingpredictors = varnames
-    }else{
-      outcome_pcr = outcome
-      input_list = as.list(outcome)
-      differentialtimevaryingpredictors = outcome
-    }
+  #   if(is.null(outcome)){
+  #     outcome_pcr = varnames
+  #     input_list = as.list(varnames)
+  #     differentialtimevaryingpredictors = varnames
+  #   }else{
+  #     outcome_pcr = outcome
+  #     input_list = as.list(outcome)
+  #     differentialtimevaryingpredictors = outcome
+  #   }
+  #
+  #
+  #     datamanipulationout = datamanipulation(
+  #       differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+  #       outcome = outcome_pcr,
+  #       dataset = dataset,
+  #       ID = ID,
+  #       Time = Time,
+  #       standardized = standardized,
+  #       predictionsend = predictionsend
+  #     )
+  #     lengthcovariates = datamanipulationout$lengthcovariates
+  #     namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
+  #     laglongreducedummy = datamanipulationout$laglongreducedummy
+  #   # Run the CT estimation
+  #   cat(paste("Perform ", estimate , " expct estimation",".\n",sep=""))
+  #   #print(head(laglongreducedummy))
+  #   estout = CTest(
+  #     differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+  #     outcome = outcome_pcr,
+  #     # predictionstart = predictionstart,
+  #     # predictionsend = predictionsend,
+  #     # predictionsinterval = predictionsinterval,
+  #     namesofnewpredictorvariables = namesofnewpredictorvariables,
+  #     laglongreducedummy = laglongreducedummy,
+  #     method = method,
+  #     gamma = gamma,
+  #     numberofknots = numberofknots,
+  #     ktrend = ktrend,
+  #     lengthcovariates = lengthcovariates,
+  #     plot_show = plot_show
+  #   )
+  #   # Do estimation
+  #   # get model out
+  #   model = estout$mod
+  #
+  #   # make dummy frame for getting predictions out of model
+  #   pdat = data.frame(timediff = Tpred,time = 0)
+  #   add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat))
+  #   pdat2 = cbind(pdat, add_mat)
+  #   colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
+  #
+  #   # get predictions from model
+  #   predictions = predict(model, pdat2, type = "terms", se = "TRUE")
+  #   for (i in 1:length(Single_preds)){
+  #     Single_preds[[i]] = as.vector(predictions$fit[,i])
+  #   }
+  #   if(output_type == "CI"){
+  #   for (i in 1:length(Single_preds)){
+  #     Single_highCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[2],lower.tail = T)*as.vector(predictions$se.fit[,i])
+  #     Single_lowCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[1],lower.tail = T)*as.vector(predictions$se.fit[,i])
+  #   }
+  #   }
+  #
+  #   if(output_type == "SCI"){
+  #     for (i in 1:length(Single_preds)){
+  #       NN = 10000  # The bootstrap times to generate the bias of estimation
+  #       Vb = vcov(model) # Compute the estimated covariance matrix of estimation of parameters
+  #       predictions_ = predict(model, pdat2, se.fit = "TRUE") # get the prediction on the selected grid with fit.se
+  #       se.fit = predictions_$se.fit
+  #       L = mroot(Vb)
+  #       mm = ncol(L)
+  #       mu = rep(0, nrow(Vb))
+  #       BUdiff = mu + L %*% matrix(rnorm(mm*NN), mm, NN) # Resample the value of bias of estimation under normally distributed assumption
+  #       Cg = predict(model, pdat2, type = "lpmatrix")
+  #       simDev = Cg %*% BUdiff
+  #       absDev = abs(sweep(simDev, 1, se.fit, FUN = "/"))
+  #       masd = apply(absDev, 2, max) # Estimate the distribution of the max standardized deviationbetween the true function and the model estimate
+  #       crit = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
+  #       Single_highCI[[i]] = as.vector(predictions$fit[,i]) + crit*predictions_$se.fit
+  #       Single_lowCI[[i]] = as.vector(predictions$fit[,i]) - crit*predictions_$se.fit
+  #     }
+  #   }
+  #
+  #   list_name = c(list_name, namesofnewpredictorvariables)
+  #
+  #   if(output_type == "LLCI"){ # Compute the se of correlation based on the large_lag method partial version
+  #     # We need estimate all partial effects at one time since the large_lag se need these information
+  #     # Get the varmat as we did in the marginal estimation
+  #     if(is.null(outcome)){
+  #       varnames_mat <- as.matrix(expand.grid(varnames, varnames))
+  #     }else{
+  #       varnames_mat <- as.matrix(expand.grid(outcome, outcome))
+  #     }
+  #     pp = length(varnames)
+  #     Single_preds_all = vector("list",length = pp*pp) # record each single auto and cross correlation effects
+  #
+  #     #names(Single_preds_all) = varnames
+  #     differentialtimevaryingpredictors = varnames
+  #     datamanipulationout = datamanipulation(
+  #       differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+  #       outcome = varnames,
+  #       dataset = dataset,
+  #       ID = ID,
+  #       Time = Time,
+  #       standardized = standardized,
+  #       predictionsend = predictionsend
+  #     )
+  #     lengthcovariates = datamanipulationout$lengthcovariates
+  #     namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
+  #     laglongreducedummy = datamanipulationout$laglongreducedummy
+  #     cat(paste("Perform ", estimate , " expct estimation for large lag CI",".\n",sep=""))
+  #     #print(head(laglongreducedummy))
+  #     estout = CTest(
+  #       differentialtimevaryingpredictors = differentialtimevaryingpredictors,
+  #       outcome = outcome_pcr,
+  #       namesofnewpredictorvariables = namesofnewpredictorvariables,
+  #       laglongreducedummy = laglongreducedummy,
+  #       method = method,
+  #       gamma = gamma,
+  #       numberofknots = numberofknots,
+  #       ktrend = ktrend,
+  #       lengthcovariates = lengthcovariates,
+  #       plot_show = plot_show
+  #     )
+  #     model = estout$mod
+  #     Tpred_max = seq(0, max(Tpred),1)
+  #     pdat = data.frame(timediff = Tpred_max,time = 0)
+  #     add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat))
+  #     pdat2 = cbind(pdat, add_mat)
+  #     colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
+  #
+  #     # get predictions from model
+  #     predictions = predict(model, pdat2, type = "terms", se = "TRUE")
+  #
+  #     # Store all partial auto and cross correlation
+  #     nn = 1
+  #     Single_preds_all_names = vector(length = pp*pp)
+  #     lag_len = floor(max(Tpred))
+  #     lag_zero = lag_len + 1
+  #     for(i in c(1:pp)){
+  #       for(j in c(1:pp)){
+  #       Single_preds_all[[nn]] = predictions$fit[,paste("s(timediff):",varnames[i],"lagon",varnames[j],sep = "")]
+  #       Single_preds_all_names[nn] = paste(varnames[i],"lagon",varnames[j],sep = "")
+  #       nn = nn + 1
+  #       }
+  #     }
+  #     names(Single_preds_all) = Single_preds_all_names
+  #     n = nrow(dataset)
+  #     for (iii in c(1:nrow(varnames_mat))) {
+  #       if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
+  #         sd_acf = c()
+  #         Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
+  #         for(l in Tpred){
+  #           sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[Preds_names]][2:floor(l)]^2))) ) # Compute the large_lag_standard error
+  #         }
+  #         Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
+  #         Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
+  #       }else{ # compute CI of cross correlation effects
+  #         c1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
+  #         c2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,1],sep = "")
+  #         a1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,1],sep = "")
+  #         a2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,2],sep = "")
+  #
+  #         ccf_ij_twoway = c(rev(Single_preds_all[[c2Preds_names]][-1]),Single_preds_all[[c1Preds_names]])
+  #         #ccf_ji_twoway = rev(ccf_ij_twoway)
+  #         acf_i = Single_preds_all[[a1Preds_names]][-1]
+  #         acf_j = Single_preds_all[[a2Preds_names]][-1]
+  #         acf_i_two_way = c(rev(acf_i),1,acf_i)
+  #         acf_j_two_way = c(rev(acf_j),1,acf_j)
+  #         sd_ccf = c()
+  #         for (l in Tpred){
+  #           floor_l = floor(l)
+  #           lag_loc = lag_zero+floor_l
+  #           corr_ij_k_add_v = ccf_ij_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
+  #           corr_ij_k_minus_v = ccf_ij_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
+  #           #corr_ji_k_add_v = ccf_ji_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
+  #           #corr_ji_k_minus_v = ccf_ji_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
+  #           #corr_ii_k_add_v = acf_i_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
+  #           corr_jj_k_add_v = acf_j_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
+  #           #corr_ii_k_add_v[is.na(corr_ii_k_add_v)] = 0
+  #           corr_jj_k_add_v[is.na(corr_jj_k_add_v)] = 0
+  #           corr_ij_k_add_v[is.na(corr_ij_k_add_v)] = 0
+  #           corr_ij_k_minus_v[is.na(corr_ij_k_minus_v)] = 0
+  #           #corr_ji_k_add_v[is.na(corr_ji_k_add_v)] = 0
+  #           #corr_ji_k_minus_v[is.na(corr_ji_k_minus_v)] = 0
+  #           #sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
+  #           sd_ccf = c(sd_ccf, sqrt((n-floor_l)^(-1)*(
+  #             sum(acf_i_two_way*acf_j_two_way)
+  #             + sum(corr_ij_k_add_v*corr_ij_k_minus_v)
+  #             +  ccf_ij_twoway[lag_loc]^2*(sum(0.5*acf_i_two_way^2)+sum(0.5*acf_j_two_way^2) + sum(ccf_ij_twoway^2))
+  #             -  2*ccf_ij_twoway[lag_loc]*(sum(acf_i_two_way*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)*corr_jj_k_add_v))
+  #           )))
+  #
+  #
+  #         }
+  #
+  #         Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
+  #         Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
+  #       }
+  #     }
+  #   }
+  #
+  #
+  #
+  #
+}
 
 
-      datamanipulationout = datamanipulation(
-        differentialtimevaryingpredictors = differentialtimevaryingpredictors,
-        outcome = outcome_pcr,
-        dataset = dataset,
-        ID = ID,
-        Time = Time,
-        standardized = standardized,
-        predictionsend = predictionsend
-      )
-      lengthcovariates = datamanipulationout$lengthcovariates
-      namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
-      laglongreducedummy = datamanipulationout$laglongreducedummy
-    # Run the CT estimation
-    cat(paste("Perform ", estimate , " expct estimation",".\n",sep=""))
-    #print(head(laglongreducedummy))
-    estout = CTest(
-      differentialtimevaryingpredictors = differentialtimevaryingpredictors,
-      outcome = outcome_pcr,
-      # predictionstart = predictionstart,
-      # predictionsend = predictionsend,
-      # predictionsinterval = predictionsinterval,
-      namesofnewpredictorvariables = namesofnewpredictorvariables,
-      laglongreducedummy = laglongreducedummy,
-      method = method,
-      gamma = gamma,
-      numberofknots = numberofknots,
-      ktrend = ktrend,
-      lengthcovariates = lengthcovariates,
-      plot_show = plot_show
-    )
-    # Do estimation
-    # get model out
-    model = estout$mod
+# Rename the output name from the format Y1lagonY2 to Y1toY2, here Y1 is the predictor and Y2 is the response variable
 
-    # make dummy frame for getting predictions out of model
-    pdat = data.frame(timediff = Tpred,time = 0)
-    add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat))
-    pdat2 = cbind(pdat, add_mat)
-    colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
+  list_name_new = gsub("lagon", "to", list_name)
 
-    # get predictions from model
-    predictions = predict(model, pdat2, type = "terms", se = "TRUE")
-    for (i in 1:length(Single_preds)){
-      Single_preds[[i]] = as.vector(predictions$fit[,i])
-    }
-    if(output_type == "CI"){
-    for (i in 1:length(Single_preds)){
-      Single_highCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[2],lower.tail = T)*as.vector(predictions$se.fit[,i])
-      Single_lowCI[[i]] = as.vector(predictions$fit[,i])+qnorm(quantiles[1],lower.tail = T)*as.vector(predictions$se.fit[,i])
-    }
-    }
-
-    if(output_type == "SCI"){
-      for (i in 1:length(Single_preds)){
-        NN = 10000  # The bootstrap times to generate the bias of estimation
-        Vb = vcov(model) # Compute the estimated covariance matrix of estimation of parameters
-        predictions_ = predict(model, pdat2, se.fit = "TRUE") # get the prediction on the selected grid with fit.se
-        se.fit = predictions_$se.fit
-        L = mroot(Vb)
-        mm = ncol(L)
-        mu = rep(0, nrow(Vb))
-        BUdiff = mu + L %*% matrix(rnorm(mm*NN), mm, NN) # Resample the value of bias of estimation under normally distributed assumption
-        Cg = predict(model, pdat2, type = "lpmatrix")
-        simDev = Cg %*% BUdiff
-        absDev = abs(sweep(simDev, 1, se.fit, FUN = "/"))
-        masd = apply(absDev, 2, max) # Estimate the distribution of the max standardized deviationbetween the true function and the model estimate
-        crit = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
-        Single_highCI[[i]] = as.vector(predictions$fit[,i]) + crit*predictions_$se.fit
-        Single_lowCI[[i]] = as.vector(predictions$fit[,i]) - crit*predictions_$se.fit
-      }
-    }
-
-    list_name = c(list_name, namesofnewpredictorvariables)
-
-    if(output_type == "LLCI"){ # Compute the se of correlation based on the large_lag method partial version
-      # We need estimate all partial effects at one time since the large_lag se need these information
-      # Get the varmat as we did in the marginal estimation
-      if(is.null(outcome)){
-        varnames_mat <- as.matrix(expand.grid(varnames, varnames))
-      }else{
-        varnames_mat <- as.matrix(expand.grid(outcome, outcome))
-      }
-      pp = length(varnames)
-      Single_preds_all = vector("list",length = pp*pp) # record each single auto and cross correlation effects
-
-      #names(Single_preds_all) = varnames
-      differentialtimevaryingpredictors = varnames
-      datamanipulationout = datamanipulation(
-        differentialtimevaryingpredictors = differentialtimevaryingpredictors,
-        outcome = varnames,
-        dataset = dataset,
-        ID = ID,
-        Time = Time,
-        standardized = standardized,
-        predictionsend = predictionsend
-      )
-      lengthcovariates = datamanipulationout$lengthcovariates
-      namesofnewpredictorvariables = datamanipulationout$namesofnewpredictorvariables
-      laglongreducedummy = datamanipulationout$laglongreducedummy
-      cat(paste("Perform ", estimate , " expct estimation for large lag CI",".\n",sep=""))
-      #print(head(laglongreducedummy))
-      estout = CTest(
-        differentialtimevaryingpredictors = differentialtimevaryingpredictors,
-        outcome = outcome_pcr,
-        namesofnewpredictorvariables = namesofnewpredictorvariables,
-        laglongreducedummy = laglongreducedummy,
-        method = method,
-        gamma = gamma,
-        numberofknots = numberofknots,
-        ktrend = ktrend,
-        lengthcovariates = lengthcovariates,
-        plot_show = plot_show
-      )
-      model = estout$mod
-      Tpred_max = seq(0, max(Tpred),1)
-      pdat = data.frame(timediff = Tpred_max,time = 0)
-      add_mat = matrix(1,  ncol = length(namesofnewpredictorvariables),nrow = nrow(pdat))
-      pdat2 = cbind(pdat, add_mat)
-      colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
-
-      # get predictions from model
-      predictions = predict(model, pdat2, type = "terms", se = "TRUE")
-
-      # Store all partial auto and cross correlation
-      nn = 1
-      Single_preds_all_names = vector(length = pp*pp)
-      lag_len = floor(max(Tpred))
-      lag_zero = lag_len + 1
-      for(i in c(1:pp)){
-        for(j in c(1:pp)){
-        Single_preds_all[[nn]] = predictions$fit[,paste("s(timediff):",varnames[i],"lagon",varnames[j],sep = "")]
-        Single_preds_all_names[nn] = paste(varnames[i],"lagon",varnames[j],sep = "")
-        nn = nn + 1
-        }
-      }
-      names(Single_preds_all) = Single_preds_all_names
-      n = nrow(dataset)
-      for (iii in c(1:nrow(varnames_mat))) {
-        if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
-          sd_acf = c()
-          Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
-          for(l in Tpred){
-            sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[Preds_names]][2:floor(l)]^2))) ) # Compute the large_lag_standard error
-          }
-          Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
-          Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
-        }else{ # compute CI of cross correlation effects
-          c1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
-          c2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,1],sep = "")
-          a1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,1],sep = "")
-          a2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,2],sep = "")
-
-          ccf_ij_twoway = c(rev(Single_preds_all[[c2Preds_names]][-1]),Single_preds_all[[c1Preds_names]])
-          #ccf_ji_twoway = rev(ccf_ij_twoway)
-          acf_i = Single_preds_all[[a1Preds_names]][-1]
-          acf_j = Single_preds_all[[a2Preds_names]][-1]
-          acf_i_two_way = c(rev(acf_i),1,acf_i)
-          acf_j_two_way = c(rev(acf_j),1,acf_j)
-          sd_ccf = c()
-          for (l in Tpred){
-            floor_l = floor(l)
-            lag_loc = lag_zero+floor_l
-            corr_ij_k_add_v = ccf_ij_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
-            corr_ij_k_minus_v = ccf_ij_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
-            #corr_ji_k_add_v = ccf_ji_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
-            #corr_ji_k_minus_v = ccf_ji_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
-            #corr_ii_k_add_v = acf_i_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
-            corr_jj_k_add_v = acf_j_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
-            #corr_ii_k_add_v[is.na(corr_ii_k_add_v)] = 0
-            corr_jj_k_add_v[is.na(corr_jj_k_add_v)] = 0
-            corr_ij_k_add_v[is.na(corr_ij_k_add_v)] = 0
-            corr_ij_k_minus_v[is.na(corr_ij_k_minus_v)] = 0
-            #corr_ji_k_add_v[is.na(corr_ji_k_add_v)] = 0
-            #corr_ji_k_minus_v[is.na(corr_ji_k_minus_v)] = 0
-            #sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
-            sd_ccf = c(sd_ccf, sqrt((n-floor_l)^(-1)*(
-              sum(acf_i_two_way*acf_j_two_way)
-              + sum(corr_ij_k_add_v*corr_ij_k_minus_v)
-              +  ccf_ij_twoway[lag_loc]^2*(sum(0.5*acf_i_two_way^2)+sum(0.5*acf_j_two_way^2) + sum(ccf_ij_twoway^2))
-              -  2*ccf_ij_twoway[lag_loc]*(sum(acf_i_two_way*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)*corr_jj_k_add_v))
-            )))
-
-
-          }
-
-          Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
-          Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
-        }
-      }
-    }
-
-
-
-
-  }
-
-
-
-
-
-  names(Single_preds) = paste(estimate," ",list_name,sep = "")
-  names(Single_highCI) = paste("HighCI ",estimate," " ,list_name,sep = "")
-  names(Single_lowCI) = paste("LowCI ",estimate," ",list_name,sep = "")
+  names(Single_preds) = list_name_new
+  names(Single_highCI) = list_name_new
+  names(Single_lowCI) = list_name_new
 
 
   if(boot == TRUE | boot == "MBB"){
@@ -551,6 +667,25 @@ expct_single <-
 
 
 #Compute_LLE = function(expct_pre = NULL, varnames_mat = NULL, Single_preds = NULL, Single_highCI    )
+
+
+
+
+var_piece <- function(ests,i,k){
+
+  # figure out what row of the estimates matrix to use for what index
+  ir <- which(ests$lag == i) ; if(length(ir)==0){  ir <- which(is.na(ests$lag)) }
+  imin <- which(ests$lag == -i) ;  if(length(imin)==0){  imin <- which(is.na(ests$lag)) }
+  kr <- which(ests$lag == k); if(length(kr)==0){  kr <- which(is.na(ests$lag)) }
+  i_min_k <- which(ests$lag == i - k); if(length(i_min_k)==0){  i_min_k <- which(is.na(ests$lag)) }
+  i_plus_k <- which(ests$lag == i + k); if(length(i_plus_k)==0){  i_plus_k <- which(is.na(ests$lag)) }
+
+  # evaluate expression
+  {ests$rx[ir]*ests$ry[ir] + ests$rxy[i_min_k]*ests$rxy[i_plus_k]
+    - 2*ests$rxy[kr]*(ests$rx[ir]*ests$rxy[i_plus_k] + ests$rxy[imin]*ests$ry[i_plus_k])
+    + (ests$rxy[kr]^2)*(ests$rxy[ir]^2 + 0.5*((ests$rx[ir])^2) + 0.5*((ests$ry[ir])^2)) ##### KW ests$rx[ir]  should be ests$rxy[ir]^2
+  }
+}
 
 
 
