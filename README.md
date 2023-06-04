@@ -1,22 +1,20 @@
 # expct
 
-[![Project Status: WIP –  Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+An `R` package to estimate auto- and cross-correlations from time-series
+data sampled with any arbitrary sampling scheme.
 
-An `R` package to extract dynamic features from regularly/irregularly
-spaced univariate/multivariate time series.
+The package takes a time-series dataset with measurement timing
+information as the input. Relying on a simple data-stacking approach and
+Generalized Additive Mixed Models (GAMMs), it allows researchers to:
 
-The package takes a longitudinal dataset as the input. Relying on a
-simple data-stacking approach and Generalized Additive Mixed Models
-(GAMMs), it allows researchers to:
+-   1)  Estimate auto- and cross-correlations at different
+        time-intervals requested by the user.
 
--   1)  Visualize the dynamic relationship between covariates and
-        outcomes as a function of time-interval, as shown below.
+-   2)  Visualize how lagged correlations vary and evolve as a function
+        of the time-interval between measurements
 
--   2)  Estimate the functional form of lagged correlations as a
-        function of the time-interval between measurements.
-
--   3)  Build various Confidence Intervals (CIs) to measure the
-        estimation uncertainty of lagged correlations.
+-   3)  Construct confidence intervals (CIs) to quantify uncertainty
+        around estimated lagged correlations.
 
 ## Background
 
@@ -30,43 +28,57 @@ github using
 
 ``` r
 devtools::install_github("ryanoisin/expct")
+library(expct)
 ```
-
-    ## Skipping install of 'expct' from a github remote, the SHA1 (9bc27833) has not changed since last install.
-    ##   Use `force = TRUE` to force installation
 
 ## Usage
 
-To deploy this package, a longitudinal dataset is taken as the input.
-The raw data is then stacked to serve for estimating GAMMs. Then, the
-point estimations of lagged correlations and corresponding CIs can be
-built.
+The package takes as input a time-series dataset or long-format
+longitudinal data. The dataset should have the following columns - `id`
+a column denoting the id number of each participant in the dataset. Note
+that for single-subject time series, this should simply be a column with
+a single number repeated, e.g. `data$id = 1` - `time` a column
+containing timing information for each observation. The specific format
+required is “time elapsed since the **first** observation” in a unit of
+the users choice (hours, minutes, etc.). If the first observation of the
+dataset is taken at 3pm, and the second observation at 5pm, then the
+first two entries of the time column should read `time[1:2] = c(0,2)`. -
+The remaining columns should contain records of the observed variables
+in long format.
 
-More specifically, the main function of this package is `CTVEM`. Some
-important input options of this function are:
+``` r
+load("data/simdata.rda")
+head(simdata)
+```
 
--   1)  dataset: Specify the longitudinal dataset which contains Time
-        (measurements time) , ID and covariates columns.
+    ##      id      time          Y1         Y2
+    ## [1,]  1  0.000000  1.91866673  0.7673046
+    ## [2,]  1  3.338756 -0.76230415  0.6131818
+    ## [3,]  1  5.878493 -0.58990520  0.4041070
+    ## [4,]  1  7.950279  1.72802101 -0.3894506
+    ## [5,]  1 10.060890  1.34938143  1.4604215
+    ## [6,]  1 14.870422  0.01682572  3.1393569
 
--   2)  quantiles: The quantiles to build CI, the default value is
-        c(low_quantile, high_quantile) = c(.025, 0.975).
+The main function of this package is `expct`. Some important input
+options of this function are:
 
--   3)  Tpred: A vector which indicates that interested time points in
-        which we want to estimate correlations, e.g. regularly spaced
-        seq(0,30,1) and iregularly spaced c(1,5,6,9,15).
+-   1)  `dataset`: the dataset in the format described above
 
--   4)  output_type: Indicate which output format will be returned. If
-        output_type == “CI”, point estimations and corresponding CIs
-        will be returned. If output_type ==“PE”, only ponit estimation
-        will be returned. If output_type ==“SCI”, the Simultaneous CIs,
-        which is based on
-        [Link](https://fromthebottomoftheheap.net/2016/12/15/simultaneous-interval-revisited/)
-        will be returned. If output_type ==“LLCI”, the CIs with
-        large-lag errors will be returned. This type of CIs is based on
-        the
-        [Book](https://books.google.com/books?hl=en&lr=&id=rNt5CgAAQBAJ&oi=fnd&pg=PR7&dq=Time+series+forecasting+and+control&ots=DK80uNo2Wy&sig=qqqwadWjU9h-ZeP9a-lXxpVdb_Q#v=onepage&q=Time%20series%20forecasting%20and%20control&f=false)
-        `Time series analysis: forecasting and control`. The default
-        value is “CI”.
+-   2)  `Tpred`: A vector which indicates the time-intervals at which
+        the user wants to estimate the auto- and cross- correlations.
+
+-   4)  `output_type`: Determines the method used to construct credible
+        or confidence intervals. If output_type == “CI”, then default
+        GAM confidence intervals are supplied, which can be interpreted
+        as “point-wise” CIs for each of the values in `Tpred`. If
+        output_type ==“SCI”, then simultaneous CIs are supplied. These
+        can be interpreted as “function-wide” CIs, see
+        [here](https://fromthebottomoftheheap.net/2016/12/15/simultaneous-interval-revisited/)
+        for an introduction. If output_type ==“LLCI”, CIs are computed
+        by approximating analytic auto- and cross-correlation standard
+        errors from the time-series literature. The default value is
+        “CI”. We recommend using either “CI” or “SCI”, with the latter
+        being more conservative
 
 The output of this functions is a list which contains below elements:
 
@@ -83,35 +95,10 @@ The output of this functions is a list which contains below elements:
 
 ### Example
 
-Load data:
+Perform analyses with `expct`:
 
 ``` r
-load("data/simdata.rda")
-library(expct)
-head(simdata)
-```
-
-    ##      id      time          Y1         Y2
-    ## [1,]  1  0.000000  1.91866673  0.7673046
-    ## [2,]  1  3.338756 -0.76230415  0.6131818
-    ## [3,]  1  5.878493 -0.58990520  0.4041070
-    ## [4,]  1  7.950279  1.72802101 -0.3894506
-    ## [5,]  1 10.060890  1.34938143  1.4604215
-    ## [6,]  1 14.870422  0.01682572  3.1393569
-
-Perform analyses with `CTVEM`:
-
-``` r
-library(mgcv)
-```
-
-    ## Warning: package 'mgcv' was built under R version 4.2.2
-
-    ## Loading required package: nlme
-
-    ## This is mgcv 1.8-41. For overview type 'help("mgcv-package")'.
-
-``` r
+# library(mgcv)
 Tpred = seq(1,30,1)
 
 est <- expct(
@@ -132,13 +119,15 @@ est <- expct(
     ## Perform the 3/4 time marginal expct estimation.
     ## Perform the 4/4 time marginal expct estimation.
 
+Plot output, for instance using
+
 ``` r
 plot(est$est[[1]], type = "b", ylab = "estimated autoregression", xlab = "time diff", main = "Autoregression X1")
 lines(est$highCI[[1]], lty = 2, col = "gray")
 lines(est$lowCI[[1]], lty = 2, col = "gray")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
 plot(est$est[[2]], type = "b", ylab = "estimated autoregression", xlab = "time diff", main = "Cross-Regression X2 on X1")
@@ -146,7 +135,7 @@ lines(est$highCI[[2]], lty = 2, col = "gray")
 lines(est$lowCI[[2]], lty = 2, col = "gray")
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-3-2.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-5-2.png)<!-- -->
 
 ``` r
 # plot(mcr$est[[2]], type = "b", ylab = "estimated autoregression", xlab = "time diff", main = "Cross-Regresion")
