@@ -1,7 +1,7 @@
 # expct
 
 An `R` package to estimate auto- and cross-correlations from time-series
-data sampled with any arbitrary sampling scheme.
+data sampled with any arbitrary sampling scheme. Developed with Nick Jacobson and Kejin Wu
 
 The package takes a time-series dataset with measurement timing
 information as the input. Relying on a simple data-stacking approach and
