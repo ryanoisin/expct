@@ -70,7 +70,8 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
                         data = laglongreducedummy,
                         na.action = na.omit,
                         gamma = gamma,
-                        weights = weights),
+                        weights = weights,
+                        drop.intercept = TRUE),
                   silent = TRUE)
     if (try(summary(trytest)[2], silent = TRUE)
         == "try-error") {
@@ -83,9 +84,10 @@ CTest = function(differentialtimevaryingpredictors = differentialtimevaryingpred
                       data = laglongreducedummy,
                       na.action = na.omit,
                       gamma = gamma,
-                      discrete = TRUE,
+                      discrete = FALSE,
                       method = "fREML",
-                      weights = weights
+                      weights = weights,
+                      drop.intercept = TRUE,
                     ),
                   silent = TRUE)
     if (try(summary(trytest)[2], silent = TRUE)
