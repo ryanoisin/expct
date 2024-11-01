@@ -130,4 +130,4 @@ lines(out$lowCI$Y2toY1, lty = 2, col = "gray")
 
 ## Contact Details
 
-For more details please contact **<o.ryan@uu.nl>**
+For more details please contact **<o.ryan@umcutrecht.nl>**
