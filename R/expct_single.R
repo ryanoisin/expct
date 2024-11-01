@@ -316,10 +316,10 @@ expct_single <-
 
           # now calculate this over the vector Tpred
           sdvec = sapply(Tpred, function(k){
-            lag.max = max(Tpred)
+            lag.max = floor(quantile(Tpred, .75))
             ivec = seq(-lag.max, lag.max, 1)
             varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests2, i = s,k)))
-            sqrt(abs(varests))
+            sqrt(varests)
           })
 
           Single_highCI[[iii]] = Single_preds[[iii]] + 1.96*sdvec
@@ -355,7 +355,7 @@ expct_single <-
 
           # now calculate this over a vector of k values
           sdvec <- sapply(Tpred, function(k){
-            lag.max = max(Tpred)
+            lag.max = floor(quantile(Tpred, .75))
             ivec <- seq(-lag.max, lag.max, 1)
             varests <- (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests, i = s,k)))
             sqrt(varests)
