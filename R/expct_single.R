@@ -316,7 +316,7 @@ expct_single <-
 
           # now calculate this over the vector Tpred
           sdvec = sapply(Tpred, function(k){
-            lag.max = floor(quantile(Tpred, .75))
+            lag.max = max(Tpred) - min(Tpred)
             ivec = seq(-lag.max, lag.max, 1)
             varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests2, i = s,k)))
             sqrt(varests)
@@ -355,7 +355,7 @@ expct_single <-
 
           # now calculate this over a vector of k values
           sdvec <- sapply(Tpred, function(k){
-            lag.max = floor(quantile(Tpred, .75))
+            lag.max = max(Tpred) - min(Tpred)
             ivec <- seq(-lag.max, lag.max, 1)
             varests <- (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests, i = s,k)))
             sqrt(varests)
@@ -623,7 +623,7 @@ var_piece <- function(ests,i,k){
   ir <- which(ests$lag == i) ; if(length(ir)==0){  ir <- which(is.na(ests$lag)) }
   imin <- which(ests$lag == -i) ;  if(length(imin)==0){  imin <- which(is.na(ests$lag)) }
   kr <- which(ests$lag == k); if(length(kr)==0){  kr <- which(is.na(ests$lag)) }
-  i_min_k <- which(ests$lag == -i + k); if(length(i_min_k)==0){  i_min_k <- which(is.na(ests$lag)) }
+  i_min_k <- which(ests$lag == i - k); if(length(i_min_k)==0){  i_min_k <- which(is.na(ests$lag)) }
   i_plus_k <- which(ests$lag == i + k); if(length(i_plus_k)==0){  i_plus_k <- which(is.na(ests$lag)) }
 
   # evaluate expression
