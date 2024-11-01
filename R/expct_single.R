@@ -319,7 +319,7 @@ expct_single <-
             lag.max = max(Tpred)
             ivec = seq(-lag.max, lag.max, 1)
             varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests2, i = s,k)))
-            sqrt(varests)
+            sqrt(abs(varests))
           })
 
           Single_highCI[[iii]] = Single_preds[[iii]] + 1.96*sdvec
