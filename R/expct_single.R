@@ -17,7 +17,7 @@
 #' @param k The number of k selection points used in the model for stage 1 (see ?choose.k in mgcv package for more details) The ideal k is the maximum number of data points per person, but this slows down DTVEM and is often not required. (OPTIONAL, BUT RECOMMENDED)
 #' @param ktrend The number of k selection points used in the model for the time spline (NOTE THAT THIS CONTROLS FOR TIME TRENDS OF THE POPULATION)  (see ?choose.k in mgcv package for more details). Default is 3. (OPTIONAL)
 #' @param weighting Test option. Calculate weights for stacked data vector?
-
+#' @param llc_method determine which large-lag-correlation method used to compute the variance of the auto-correlation and cross-correlation
 
 expct_single <-
   function(dataset = NULL,
@@ -37,7 +37,8 @@ expct_single <-
            ktrend = 3,
            quantiles = c(.025, 0.975),
            predictionsend  = NULL,
-           weighting = FALSE) {
+           weighting = FALSE,
+           llc_method = "ks") {
 
   #LOAD NECESSARY PACKAGES
   #library(mgcv) #USED FOR THE PRIMARY ANALYSES
@@ -191,7 +192,7 @@ expct_single <-
        colnames(pdat2)[3:ncol(pdat2)] = namesofnewpredictorvariables
 
        # get predictions from model
-       predictions = predict(model, pdat2, type = "terms", se = "TRUE")
+       predictions = predict(model, pdat2, type = "terms", se.fit = "TRUE")
        Single_preds[[i]] = as.vector(predictions$fit[,1])
 
        # Transform the regression prediction to the correlation
@@ -215,20 +216,25 @@ expct_single <-
 
       if(output_type == "SCI"){
         NN = 10000  # The bootstrap times to generate the bias of estimation
-        Vb = vcov(model) # Compute the estimated covariance matrix of estimation of parameters
-        predictions_ = predict(model, pdat2, se.fit = "TRUE") # get the prediction on the selected grid with fit.se
+        Vb = vcov(model, unconditional = TRUE) # Compute the estimated covariance matrix of estimation of parameters
+        predictions_ = predict(model, pdat2,type = "terms", se.fit = "TRUE") # get the prediction on the selected grid with fit.se
         se.fit = predictions_$se.fit
-        L = mroot(Vb)
-        mm = ncol(L)
-        mu = rep(0, nrow(Vb))
-        BUdiff = mu + L %*% matrix(rnorm(mm*NN), mm, NN) # Resample the value of bias of estimation under normally distributed assumption
+        #L = mroot(Vb)
+        #mm = ncol(L)
+        #mu = rep(0, nrow(Vb))
+        #BUdiff = mu + L %*% matrix(rnorm(mm*NN), mm, NN) # Resample the value of bias of estimation under normally distributed assumption
+
+        BUdiff = rmvn(NN,mu = rep(0,nrow(Vb)), V = Vb)
+
         Cg = predict(model, pdat2, type = "lpmatrix")
-        simDev = Cg %*% BUdiff
-        absDev = abs(sweep(simDev, 1, se.fit, FUN = "/"))
+        simDev = Cg %*% t(BUdiff)
+        absDev = abs(sweep(simDev, 1, se.fit[,1], FUN = "/"))
         masd = apply(absDev, 2, max) # Estimate the distribution of the max standardized deviationbetween the true function and the model estimate
-        crit = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
-        Single_highCI[[i]] = as.vector(predictions$fit[,1]) + crit*predictions_$se.fit
-        Single_lowCI[[i]] = as.vector(predictions$fit[,1]) - crit*predictions_$se.fit
+        crit_up = quantile(masd, prob = quantiles[2]) # Compute the critical value for a given confidence level
+
+
+        Single_highCI[[i]] = as.vector(predictions$fit[,1]) + crit_up*predictions_$se.fit
+        Single_lowCI[[i]] = as.vector(predictions$fit[,1]) - crit_up*predictions_$se.fit
         if(differentialtimevaryingpredictors != outcome_mcr){
           sd_pre = sd(dataset[,differentialtimevaryingpredictors])
           sd_out = sd(dataset[,outcome_mcr])
@@ -305,13 +311,46 @@ expct_single <-
           ests2 = as.data.frame(cbind(acf_x2, acf_x2, ccfmat2))
           colnames(ests2) = c("rx", "ry", "rxy", "lag")
 
+          # Create the row with NA lag and rx = ry = rxy = 0
+          ests2 = rbind(ests2, 0)
+          ests2[nrow(ests2),ncol(ests2)] = NA
+
+
           # now calculate this over the vector Tpred
-          sdvec = sapply(Tpred, function(k){
+
+          sdvec <- sapply(Tpred, function(k){
+            sigma_initial = 1
             lag.max = max(Tpred)
-            ivec = seq(-lag.max, lag.max, 1)
-            varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests2, i = s,k)))
+            ivec <- seq(-lag.max, lag.max, 1)
+            varests = 0
+            itr = 0
+            if(llc_method == "kc"){
+              while (varests<=0 & itr < 50) {
+                varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece_kc(ests = ests2, i = s,k, lag_max = lag.max, sigma_sq = sigma_initial)))
+                sigma_initial = sigma_initial/2
+                itr = itr + 1
+              }
+
+            }
+            if(llc_method == "ks"){
+              while (varests<=0 & itr < 50) {
+                varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece_ks(ests = ests2, i = s,k, lag_max = lag.max, sigma_sq = sigma_initial)))
+                sigma_initial = sigma_initial/2
+                itr = itr + 1
+              }
+            }
+
+            if(llc_method == "c"){
+              varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece_c(ests = ests2, i = s,k)))
+            }
+
+            if(llc_method == "s"){
+              varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece_s(ests = ests2, i = s,k)))
+            }
+
             sqrt(varests)
-          })
+          }
+          )
 
           Single_highCI[[iii]] = Single_preds[[iii]] + 1.96*sdvec
           Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sdvec
@@ -339,87 +378,54 @@ expct_single <-
           ests <- as.data.frame(cbind(c(rev(acf_pre[-1]),1,acf_pre[-1]), c(rev(acf_out[-1]),1,acf_out[-1]), crossmat))
           colnames(ests) <- c("rx", "ry", "rxy", "lag")
 
+          # Create the row with NA lag and rx = ry = rxy = 0
+          ests = rbind(ests, 0)
+          ests[nrow(ests),ncol(ests)] = NA
+
+
           # now calculate this over a vector of k values
+
           sdvec <- sapply(Tpred, function(k){
+            sigma_initial = 1
             lag.max = max(Tpred)
             ivec <- seq(-lag.max, lag.max, 1)
-            varests <- (1/(n-k))*sum(sapply(ivec, function(s) var_piece(ests = ests, i = s,k)))
+            varests = 0
+            itr = 0
+            if(llc_method == "kc"){
+            while (varests<=0 & itr < 50) {
+              varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece_kc(ests = ests, i = s,k, lag_max = lag.max, sigma_sq = sigma_initial)))
+              sigma_initial = sigma_initial/2
+              itr = itr + 1
+            }
+
+            }
+            if(llc_method == "ks"){
+              while (varests<=0 & itr < 50) {
+                varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece_ks(ests = ests, i = s,k, lag_max = lag.max, sigma_sq = sigma_initial)))
+                sigma_initial = sigma_initial/2
+                itr = itr + 1
+              }
+            }
+
+            if(llc_method == "c"){
+              varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece_c(ests = ests, i = s,k)))
+            }
+
+            if(llc_method == "s"){
+              varests = (1/(n-k))*sum(sapply(ivec, function(s) var_piece_s(ests = ests, i = s,k)))
+            }
+
             sqrt(varests)
-          })
+            }
+            )
+
+
 
           Single_highCI[[iii]] = Single_preds[[iii]] + 1.96*sdvec
           Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sdvec
         }
 
       }
-
-
-
-      #
-      # for (iii in c(1:nrow(varnames_mat))) {
-      #   if(length(unique(varnames_mat[iii,])) == 1){ # compute CI of auto correlation effects
-      #     sd_acf = c()
-      #     Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
-      #     for(l in Tpred){
-      #       sd_acf = c(sd_acf, sqrt( n^(-1)*(1 + 2*sum(Single_preds_all[[Preds_names]][2:floor(l)]^2))) ) # Compute the large_lag_standard error
-      #     }
-      #     Single_highCI[[iii]]  = Single_preds[[iii]] + 1.96*sd_acf
-      #     Single_lowCI[[iii]] = Single_preds[[iii]] - 1.96*sd_acf
-      #   }else{ # compute CI of cross correlation effects
-      #     c1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,2],sep = "")
-      #     c2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,1],sep = "")
-      #     a1Preds_names = paste(varnames_mat[iii,1],"lagon",varnames_mat[iii,1],sep = "")
-      #     a2Preds_names = paste(varnames_mat[iii,2],"lagon",varnames_mat[iii,2],sep = "")
-      #
-      #     ccf_ij_twoway = c(rev(Single_preds_all[[c2Preds_names]][-1]),Single_preds_all[[c1Preds_names]])
-      #     #ccf_ji_twoway = rev(ccf_ij_twoway)
-      #     acf_i = Single_preds_all[[a1Preds_names]][-1]
-      #     acf_j = Single_preds_all[[a2Preds_names]][-1]
-      #     acf_i_two_way = c(rev(acf_i),1,acf_i)
-      #     acf_j_two_way = c(rev(acf_j),1,acf_j)
-      #     sd_ccf = c()
-      #     for (l in Tpred){
-      #       floor_l = floor(l)
-      #       lag_loc = lag_zero+floor_l
-      #       corr_ij_k_add_v = ccf_ij_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
-      #       corr_ij_k_minus_v = ccf_ij_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
-      #       #corr_ji_k_add_v = ccf_ji_twoway[(lag_loc-lag_len) : (lag_loc+lag_len)]
-      #       #corr_ji_k_minus_v = ccf_ji_twoway[(lag_loc+lag_len) : (lag_loc-lag_len)]
-      #       #corr_ii_k_add_v = acf_i_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
-      #       corr_jj_k_add_v = acf_j_two_way[(lag_loc-lag_len) : (lag_loc+lag_len)]
-      #       #corr_ii_k_add_v[is.na(corr_ii_k_add_v)] = 0
-      #       corr_jj_k_add_v[is.na(corr_jj_k_add_v)] = 0
-      #       corr_ij_k_add_v[is.na(corr_ij_k_add_v)] = 0
-      #       corr_ij_k_minus_v[is.na(corr_ij_k_minus_v)] = 0
-      #       #corr_ji_k_add_v[is.na(corr_ji_k_add_v)] = 0
-      #       #corr_ji_k_minus_v[is.na(corr_ji_k_minus_v)] = 0
-      #       #sd_ccf = c(sd_ccf, sqrt( (n-floor_l)^(-1)*(1 + 2*sum(Single_preds_all[[data_1_name]][1:floor_l]*Single_preds_all[[data_2_name]][1:floor_l])))) # Compute the large_lag_standard error based in Eq 12.1.9 of the book TS analysis and control
-      #
-      #
-      #       add_new = (
-      #           sum((acf_i_two_way)*abs(acf_j_two_way))
-      #         + sum(corr_ij_k_add_v*corr_ij_k_minus_v)
-      #         +  ccf_ij_twoway[lag_loc]^2*(sum(0.5*acf_i_two_way^2)+sum(0.5*acf_j_two_way^2) + sum(ccf_ij_twoway^2))
-      #         -  2*ccf_ij_twoway[lag_loc]*(sum(acf_i_two_way*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)*corr_jj_k_add_v))
-      #       )
-      #       # if(add_new<0){
-      #       #   add_new = add_new +
-      #       #   0.5*sum(acf_i_two_way*acf_i_two_way) + 0.5*sum(acf_j_two_way*acf_j_two_way) + 0.5*sum(corr_ij_k_add_v*corr_ij_k_add_v) + 0.5*sum(corr_ij_k_minus_v*corr_ij_k_minus_v)
-      #       #   + 2*ccf_ij_twoway[lag_loc]^2 + sum(acf_i_two_way*acf_i_two_way*corr_ij_k_add_v*corr_ij_k_add_v) + sum(rev(ccf_ij_twoway)^2*acf_j_two_way^2)
-      #       # }
-      #       sd_ccf = c(sd_ccf, sqrt((n-floor_l)^(-1)*(
-      #         add_new
-      #       )))
-      #       #print(sd_ccf)
-      #
-      #
-      #     }
-      #
-      #     Single_highCI[[iii]]= (Single_preds[[iii]] + 1.96*sd_ccf) # Compute the highCI
-      #     Single_lowCI[[iii]]= (Single_preds[[iii]] - 1.96*sd_ccf)
-      #   }
-      #
-      # }
     }
 
   }
@@ -671,22 +677,66 @@ expct_single <-
 
 
 
-var_piece <- function(ests,i,k){
+var_piece_c <- function(ests,i,k){
 
   # figure out what row of the estimates matrix to use for what index
   ir <- which(ests$lag == i) ; if(length(ir)==0){  ir <- which(is.na(ests$lag)) }
   imin <- which(ests$lag == -i) ;  if(length(imin)==0){  imin <- which(is.na(ests$lag)) }
   kr <- which(ests$lag == k); if(length(kr)==0){  kr <- which(is.na(ests$lag)) }
-  i_min_k <- which(ests$lag == i - k); if(length(i_min_k)==0){  i_min_k <- which(is.na(ests$lag)) }
+  i_min_k <- which(ests$lag == -i + k); if(length(i_min_k)==0){  i_min_k <- which(is.na(ests$lag)) }
   i_plus_k <- which(ests$lag == i + k); if(length(i_plus_k)==0){  i_plus_k <- which(is.na(ests$lag)) }
 
   # evaluate expression
-  {ests$rx[ir]*ests$ry[ir] + ests$rxy[i_min_k]*ests$rxy[i_plus_k]
-    - 2*ests$rxy[kr]*(ests$rx[ir]*ests$rxy[i_plus_k] + ests$rxy[imin]*ests$ry[i_plus_k])
-    + (ests$rxy[kr]^2)*(ests$rxy[ir]^2 + 0.5*((ests$rx[ir])^2) + 0.5*((ests$ry[ir])^2)) ##### KW ests$rx[ir]  should be ests$rxy[ir]^2
+
+  {ests$rx[ir]*ests$ry[ir] + ests$rxy[i_min_k]*ests$rxy[i_plus_k]  -
+      2*ests$rxy[kr]*(ests$rx[ir]*ests$rxy[i_plus_k] + ests$rxy[imin]*ests$ry[i_plus_k]) +
+      (ests$rxy[kr]^2)*(ests$rxy[ir]^2 + 0.5*((ests$rx[ir])^2) + 0.5*((ests$ry[ir])^2))
+  }
+}
+
+var_piece_s <- function(ests,i,k){
+
+  # figure out what row of the estimates matrix to use for what index
+  ir <- which(ests$lag == i) ; if(length(ir)==0){  ir <- which(is.na(ests$lag)) }
+  imin <- which(ests$lag == -i) ;  if(length(imin)==0){  imin <- which(is.na(ests$lag)) }
+  kr <- which(ests$lag == k); if(length(kr)==0){  kr <- which(is.na(ests$lag)) }
+  i_min_k <- which(ests$lag == -i + k); if(length(i_min_k)==0){  i_min_k <- which(is.na(ests$lag)) }
+  i_plus_k <- which(ests$lag == i + k); if(length(i_plus_k)==0){  i_plus_k <- which(is.na(ests$lag)) }
+
+  # evaluate expression
+
+  {ests$rx[ir]*ests$ry[ir]
   }
 }
 
 
+var_piece_ks <- function(ests,i,k,lag_max,sigma_sq){ # kernel estimator with simple expression
+
+  # figure out what row of the estimates matrix to use for what index
+  ir <- which(ests$lag == i) ; if(length(ir)==0){  ir <- which(is.na(ests$lag)) }
+  imin <- which(ests$lag == -i) ;  if(length(imin)==0){  imin <- which(is.na(ests$lag)) }
+  kr <- which(ests$lag == k); if(length(kr)==0){  kr <- which(is.na(ests$lag)) }
+  i_min_k <- which(ests$lag == -i + k); if(length(i_min_k)==0){  i_min_k <- which(is.na(ests$lag)) }
+  i_plus_k <- which(ests$lag == i + k); if(length(i_plus_k)==0){  i_plus_k <- which(is.na(ests$lag)) }
+
+  # evaluate expression
+
+  { exp(-(i/lag_max)^2/sigma_sq)*ests$rx[ir]*ests$ry[ir]
+  }
+}
+
+var_piece_kc <- function(ests,i,k,lag_max,sigma_sq){ # kernel estimator with complete expression
+
+  # figure out what row of the estimates matrix to use for what index
+  ir <- which(ests$lag == i) ; if(length(ir)==0){  ir <- which(is.na(ests$lag)) }
+  imin <- which(ests$lag == -i) ;  if(length(imin)==0){  imin <- which(is.na(ests$lag)) }
+  kr <- which(ests$lag == k); if(length(kr)==0){  kr <- which(is.na(ests$lag)) }
+  i_min_k <- which(ests$lag == -i + k); if(length(i_min_k)==0){  i_min_k <- which(is.na(ests$lag)) }
+  i_plus_k <- which(ests$lag == i + k); if(length(i_plus_k)==0){  i_plus_k <- which(is.na(ests$lag)) }
+
+  # evaluate expression
+
+  { exp(-(i/lag_max)^2/sigma_sq)*(ests$rx[ir]*ests$ry[ir] + ests$rxy[i_min_k]*ests$rxy[i_plus_k]  - 2*ests$rxy[kr]*(ests$rx[ir]*ests$rxy[i_plus_k] + ests$rxy[imin]*ests$ry[i_plus_k]) +(ests$rxy[kr]^2)*(ests$rxy[ir]^2 + 0.5*((ests$rx[ir])^2) + 0.5*((ests$ry[ir])^2)))}
+}
 
 
