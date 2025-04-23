@@ -315,7 +315,6 @@ expct_single <-
           ests2 = rbind(ests2, 0)
           ests2[nrow(ests2),ncol(ests2)] = NA
 
-
           # now calculate this over the vector Tpred
 
           sdvec <- sapply(Tpred, function(k){
@@ -722,7 +721,6 @@ var_piece_ks <- function(ests,i,k,lag_max,sigma_sq){ # kernel estimator with sim
   # evaluate expression
 
   { exp(-(i/lag_max)^2/sigma_sq)*ests$rx[ir]*ests$ry[ir]
-  }
 }
 
 var_piece_kc <- function(ests,i,k,lag_max,sigma_sq){ # kernel estimator with complete expression
