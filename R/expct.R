@@ -1,13 +1,3 @@
-# to dos:
-# - suppress detrending? k3 = FALSE? k3 = 0? check CTest (line 50) %%Solution: by adding an argument time_trend, if time_trend = FALSE, k3 = 0 %%FINISHED
-# - make evertyhing into one function call %%Solution: add a boot argument in the CT_LAG function.
-# - make version control on github  %%FINISHED
-# - output looking the same %% FINISHED
-# - efficiency (nick suggestions) %% Add an argument bam to indicate if we use the bam function to run these code.%% FINISHED
-# - test bootstrap feasibility
-
-
-
 #' Continuous Time-Varying Effect model (expct)
 #'
 #' This is the PRIMARY expct function which works for providing some lag information about continuous data.
@@ -131,7 +121,3 @@ expct <- function(dataset = NULL,
   return(Result)
 
 }
-
-
-
-
