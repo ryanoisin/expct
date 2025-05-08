@@ -514,7 +514,7 @@ var_piece_ks <- function(ests,i,k,lag_max,sigma_sq){ # kernel estimator with sim
 
   # evaluate expression
 
-  {exp(-(i/lag_max)^2/sigma_sq)*ests$rx[ir]*ests$ry[ir])}
+  {exp(-(i/lag_max)^2/sigma_sq)*ests$rx[ir]*ests$ry[ir]}
 }
 
 var_piece_kc <- function(ests,i,k,lag_max,sigma_sq){ # kernel estimator with complete expression
