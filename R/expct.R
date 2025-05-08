@@ -20,6 +20,7 @@
 #' @param quantiles The quantiles to build bootstrapping CI, the default value is c(low_quantile, high_quantile) = c(.025, 0.975)
 #' @param pivot Indicate the pivot of the bootstrapping CI is the mean of bootstrapping point estimations or the median of bootstrapping point estimations. The default value is ''Mean''
 #' @param ncores How many cores you want to use. If it is null, ncores = detectCores()/2
+#' @param llc_method determine which large-lag-correlation method used to compute the variance of the auto-correlation and cross-correlation
 #' @return The output of this function is: The point estimation of all specified marginal/partial effects (contained in a list).  If SE is true, all corresponding High-CIs and Low-CIs will also be returned (contained in a list).
 #' @import mgcv
 #' @import plyr
